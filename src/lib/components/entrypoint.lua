@@ -195,11 +195,8 @@ function entrypoint.Entrypoint(options)
       navigation = navigation,
       onRootAction = scaffoldContext.requestQuit,
       title = options.title,
-      point = options.point == false
-        and nil
-        or navigation:current().key,
       trailing = options.trailing
-        or "│uptime " .. formatUptime(context.uptime),
+        or "│ uptime " .. formatUptime(context.uptime),
       colors = colors,
       context = context,
       actions = options.topBarActions,
@@ -225,7 +222,7 @@ function entrypoint.Entrypoint(options)
       actions = options.bottomBarActions,
       trailing = options.quitHint
         or {
-          label = "│" .. memoryLabel,
+          label = "│ " .. memoryLabel,
           color = colors.muted,
         },
       colors = colors,

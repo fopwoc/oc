@@ -468,24 +468,58 @@ compose.App(function()
   local sources =
       dashboard:all()
 
-  local rows = {}
-
-
-  if #sources == 0 then
-    rows[#rows + 1] =
-        compose.Text(
-          "Waiting for telemetry...",
-          compose.Modifier
-          :foreground(
-            colors.muted
-          )
-        )
+  local function colored(text, color)
+    return {
+      text = tostring(text),
+      color = color,
+    }
   end
 
+  local function metric(value, color)
+    return colored(
+      formatNumber(value),
+      color or colors.text
+    )
+  end
 
-  for _, source in ipairs(
-    sources
-  ) do
+  local function gridCell(value, row)
+    if type(value) == "table" then
+      return compose.Text(
+        value.text,
+        compose.Modifier:foreground(
+          value.color or colors.text
+        )
+      )
+    end
+
+    return compose.Text(
+      tostring(value or ""),
+      compose.Modifier:foreground(
+        row == 1
+        and colors.primary
+        or colors.text
+      )
+    )
+  end
+
+  local gridRows = {
+    {
+      "SOURCE",
+      "STATE",
+      "TYPE",
+      "TARGET",
+      "CRAFT",
+      "WAIT",
+      "REQ",
+      "DONE",
+      "CANCEL",
+      "COOL",
+      "SEEN",
+      "UP",
+    },
+  }
+
+  for _, source in ipairs(sources) do
     local status,
     statusColor =
         sourceStatus(source)
@@ -493,42 +527,100 @@ compose.App(function()
     local age =
         dashboard:age(source)
 
-    if source.source == "crafter" then
-      rows[#rows + 1] =
-          crafterCard(
-            source,
-            status,
-            statusColor,
-            age
-          )
-    else
-      rows[#rows + 1] =
-          genericCard(
-            source,
-            status,
-            statusColor,
-            age
-          )
-    end
+    local data =
+        source.data or {}
 
-    rows[#rows + 1] =
-        compose.Spacer(
-          compose.Modifier
-          :height(1)
-        )
+    if source.source == "crafter" then
+      local activity =
+          data.playing
+          and "RUNNING"
+          or "PAUSED"
+
+      local activityColor =
+          data.playing
+          and colors.success
+          or colors.warning
+
+      if status ~= "ONLINE" then
+        activity = status
+        activityColor = statusColor
+      end
+
+      gridRows[#gridRows + 1] = {
+        colored(source.id, colors.primary),
+        colored(activity, activityColor),
+        colored(source.source, colors.muted),
+        metric(data.targets),
+        metric(data.crafting, colors.success),
+        metric(data.waiting),
+        metric(data.requests),
+        metric(data.completed, colors.success),
+        metric(data.canceled, colors.danger),
+        metric(data.cooldown, colors.warning),
+        colored(formatAge(age), colors.muted),
+        colored(
+          formatUptime(source.remoteUptime),
+          colors.muted
+        ),
+      }
+    else
+      gridRows[#gridRows + 1] = {
+        colored(source.id, colors.primary),
+        colored(status, statusColor),
+        colored(source.source, colors.muted),
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        colored(formatAge(age), colors.muted),
+        colored(
+          formatUptime(source.remoteUptime),
+          colors.muted
+        ),
+      }
+    end
   end
 
+  if #sources == 0 then
+    gridRows[#gridRows + 1] = {
+      colored(
+        "WAITING FOR TELEMETRY",
+        colors.muted
+      ),
+    }
+  end
 
-  rows[#rows + 1] =
-      compose.Spacer(
-        compose.Modifier
-        :weight(1)
-      )
+  local dashboardGrid =
+      components.Grid({
+        rows = gridRows,
+        columns = {
+          {weight = 2, align = "left"},
+          {weight = 1, align = "left"},
+          {weight = 1, align = "left"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+          {weight = 1, align = "right"},
+        },
+        appearance = "alternating",
+        oddBackground = colors.background,
+        evenBackground = colors.surface,
+        cellPadding = 0,
+        cell = gridCell,
+        modifier = compose.Modifier:fillMaxWidth(),
+      })
 
 
   return components.Entrypoint({
     title = "Dashboard",
-    point = false,
     colors = colors,
     service = "Telemetry :4242",
     topBarActions = function()
@@ -538,7 +630,9 @@ compose.App(function()
       )
     end,
     content = compose.Column(
-      rows,
+      {
+        dashboardGrid,
+      },
       compose.Modifier
       :fillMaxWidth()
       :fillMaxHeight()

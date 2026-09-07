@@ -327,7 +327,6 @@ compose.App(function()
 
   return components.Entrypoint({
     title = "Crafter",
-    point = false,
     colors = colors,
     service = "scheduler",
     topBarActions = function()

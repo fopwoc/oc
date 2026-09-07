@@ -175,14 +175,6 @@ function topAppBar.TopAppBar(options)
     colors.foreground
   )
 
-  if options.point then
-    appendText(
-      children,
-      " / " .. tostring(options.point),
-      colors.muted
-    )
-  end
-
   children[#children + 1] =
       compose.Spacer(
         compose.Modifier:weight(1)
