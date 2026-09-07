@@ -84,48 +84,34 @@ local function writeChar(
     return width
   end
 
-  local existingForeground =
-      frame.foreground[index(
+  local i =
+      index(
         frame.width,
         x,
         y
-      )]
-      or DEFAULT_FOREGROUND
-
-  local foreground =
-      color.blend(
-        frame.foregroundColor,
-        existingForeground
       )
+
+  local existingBackground =
+      frame.background[i]
+      or DEFAULT_BACKGROUND
 
   local background
 
   if preserveBackground then
-    local i =
-        index(
-          frame.width,
-          x,
-          y
-        )
-
-    background =
-        frame.background[i]
-        or DEFAULT_BACKGROUND
+    background = existingBackground
   else
-    local existingBackground =
-        frame.background[index(
-          frame.width,
-          x,
-          y
-        )]
-        or DEFAULT_BACKGROUND
-
     background =
         color.blend(
           frame.backgroundColor,
           existingBackground
         )
   end
+
+  local foreground =
+      color.blend(
+        frame.foregroundColor,
+        background
+      )
 
   setCell(
     frame,
@@ -422,6 +408,10 @@ function framebuffer.present(
 
   local activeForeground = nil
   local activeBackground = nil
+  local changedCells = 0
+  local gpuWrites = 0
+  local foregroundChanges = 0
+  local backgroundChanges = 0
 
   for y = 1, height do
     local changed = {}
@@ -439,7 +429,10 @@ function framebuffer.present(
             previous,
             i
           ) then
-        changed[x] = true
+        if not changed[x] then
+          changed[x] = true
+          changedCells = changedCells + 1
+        end
 
         -- Если изменилась continuation-cell,
         -- перерисовываем и начало wide-глифа.
@@ -562,6 +555,9 @@ function framebuffer.present(
                 foreground
               )
 
+              foregroundChanges =
+                  foregroundChanges + 1
+
               activeForeground =
                   foreground
             end
@@ -574,6 +570,9 @@ function framebuffer.present(
                 background
               )
 
+              backgroundChanges =
+                  backgroundChanges + 1
+
               activeBackground =
                   background
             end
@@ -583,11 +582,22 @@ function framebuffer.present(
               y,
               table.concat(run)
             )
+
+            gpuWrites =
+                gpuWrites + 1
           end
         end
       end
     end
   end
+
+  return {
+    changedCells = changedCells,
+    gpuWrites = gpuWrites,
+    foregroundChanges = foregroundChanges,
+    backgroundChanges = backgroundChanges,
+    cells = width * height,
+  }
 end
 
 return framebuffer

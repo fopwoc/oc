@@ -1,0 +1,5 @@
+.source
+.installed.lua
+.install-staging-*
+manifest.lua
+run.lua

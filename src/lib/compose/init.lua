@@ -5,6 +5,8 @@ local modifier = require("lib.compose.modifier")
 local color = require("lib.compose.color")
 local scroll = require("lib.compose.scroll")
 local navigation = require("lib.compose.navigation")
+local hardware = require("lib.compose.hardware")
+local ringBuffer = require("lib.compose.ring_buffer")
 
 local compose = {}
 
@@ -16,6 +18,13 @@ compose.DisposableEffect = runtime.DisposableEffect
 compose.RecomposeScope = runtime.RecomposeScope
 compose.delay = runtime.delay
 compose.awaitEvent = runtime.awaitEvent
+compose.uptime = runtime.uptime
+compose.metrics = runtime.metrics
+compose.hardware = hardware.snapshot
+compose.rendererMetrics = renderer.metrics
+compose.setKeyHandler = runtime.setKeyHandler
+compose.quit = runtime.quit
+compose.RingBuffer = ringBuffer.create
 
 -- Nodes
 
@@ -48,6 +57,15 @@ function compose.rememberScrollState()
   return holder.value
 end
 
+function compose.rememberRingBuffer(capacity)
+  local holder =
+      runtime.remember(function()
+        return ringBuffer.create(capacity)
+      end)
+
+  return holder.value
+end
+
 function compose.rememberNavBackStack(
     startKey,
     startArgs
@@ -74,16 +92,32 @@ function compose.App(content, options)
 
   renderer.reset(rendererOptions)
 
-  runtime.App(
-    content,
-    function(tree)
-      return renderer.render(
-        tree,
+  local ok, err =
+      pcall(
+        runtime.App,
+        content,
+        function(tree)
+          return renderer.render(
+            tree,
+            rendererOptions
+          )
+        end,
+        options
+      )
+
+  local clearOk, clearError =
+      pcall(
+        renderer.reset,
         rendererOptions
       )
-    end,
-    options
-  )
+
+  if not ok then
+    error(err, 0)
+  end
+
+  if not clearOk then
+    error(clearError, 0)
+  end
 end
 
 return compose

@@ -15,6 +15,8 @@ return {
       "lib/compose/input_target.lua",
       "lib/compose/scroll.lua",
       "lib/compose/navigation.lua",
+      "lib/compose/hardware.lua",
+      "lib/compose/ring_buffer.lua",
     },
   },
 
@@ -26,9 +28,11 @@ return {
       "test/suite.lua",
       "test/engine.lua",
       "test/color.lua",
+      "test/ring_buffer.lua",
       "test/navigation_engine.lua",
       "test/lifecycle.lua",
       "test/renderer.lua",
+      "test/scaffold.lua",
     },
     run = "test/suite.lua",
     description = "Compose engine regression tests",
@@ -44,17 +48,24 @@ return {
       "lib/components/button.lua",
       "lib/components/toggle.lua",
       "lib/components/dialog.lua",
+      "lib/components/scaffold.lua",
+      "lib/components/top_app_bar.lua",
+      "lib/components/command_bar.lua",
+      "lib/components/grid.lua",
+      "lib/components/entrypoint.lua",
+      "lib/components/accordion.lua",
+      "lib/components/buffer_view.lua",
     },
   },
 
   test_compose = {
     depends = {
-      "compose",
+      "compose_components",
     },
     files = {
-      "test/ui.lua",
+      "test/compose.lua",
     },
-    run = "test/ui.lua",
+    run = "test/compose.lua",
     description = "UI showcase",
   },
 
@@ -75,17 +86,6 @@ return {
     },
     run = "test/unicode.lua",
       description = "unicode test",
-    },
-
-  test_colors = {
-      depends = {
-        "compose",
-      },
-      files = {
-        "test/colors.lua",
-      },
-      run = "test/colors.lua",
-      description = "Color compositing showcase",
     },
 
   telemetry_protocol = {

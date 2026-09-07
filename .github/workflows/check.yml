@@ -1,0 +1,44 @@
+name: Check
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+
+      - name: Run local checks
+        run: |
+          LUA_BIN=lua5.4 LUAC_BIN=luac5.4 ./check.sh
+          lua5.4 scripts/check_manifest.lua
+
+      - name: Package source
+        run: tar -czf oc-source.tar.gz src check.sh devserver.sh
+
+      - name: Upload source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: oc-source
+          path: oc-source.tar.gz
+          retention-days: 7

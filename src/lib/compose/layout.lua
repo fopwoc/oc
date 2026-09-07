@@ -90,7 +90,13 @@ local function getBorderInsets(node)
         element.phase == "border"
         and element.type == "border"
     then
-      return 1, 1, 1, 1
+      local characters = element.characters
+
+      return
+          characters.left ~= "" and 1 or 0,
+          characters.top ~= "" and 1 or 0,
+          characters.right ~= "" and 1 or 0,
+          characters.bottom ~= "" and 1 or 0
     end
   end
 

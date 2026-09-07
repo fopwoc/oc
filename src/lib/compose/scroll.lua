@@ -7,6 +7,7 @@ function ScrollState:new(invalidate)
   return setmetatable({
     value = 0,
     maxValue = 0,
+    followingEnd = false,
     invalidate = invalidate,
   }, self)
 end
@@ -16,9 +17,21 @@ function ScrollState:getValue()
 end
 
 function ScrollState:scrollBy(delta)
+  self.followingEnd = false
+
   return self:scrollTo(
     self.value + delta
   )
+end
+
+function ScrollState:isAtEnd()
+  return self.value >= self.maxValue
+end
+
+function ScrollState:followEnd()
+  self.followingEnd = true
+
+  return self:scrollTo(self.maxValue)
 end
 
 function ScrollState:scrollTo(value)
@@ -52,6 +65,10 @@ function ScrollState:setMaxValue(value)
       )
 
   self.maxValue = maxValue
+
+  if self.followingEnd then
+    self.value = maxValue
+  end
 
   if self.value > maxValue then
     self.value = maxValue

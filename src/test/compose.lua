@@ -1,9 +1,12 @@
 local compose = require("lib.compose.init")
+local components = require("lib.components.init")
+local debug = require("lib.compose.debug")
 
 compose.App(function()
   local progress = compose.remember(0)
   local clicks = compose.remember(0)
   local scroll = compose.remember(0)
+  local debugEnabled = compose.remember(debug.isEnabled())
 
   local lifecycleVisible =
       compose.remember(true)
@@ -31,10 +34,30 @@ compose.App(function()
 
     compose.RecomposeScope("static", function()
       return compose.Column({
-          compose.Text("COMPOSE SHOWCASE"),
+          compose.Row({
+              compose.Text("COMPOSE SHOWCASE"),
+
+              compose.Spacer(
+                compose.Modifier:weight(1)
+              ),
+
+              components.Toggle(
+                "RECOMPOSE DEBUG",
+                debugEnabled.value,
+                function(enabled)
+                  debug.setEnabled(enabled)
+                  debugEnabled.value = enabled
+                end,
+                components.ToggleStyles.switch
+              ),
+            },
+            compose.Modifier:fillMaxWidth()
+          ),
 
           compose.Text(
-            "ASCII | Кириллица | 日本語 | 😀 🚀 ❤️"
+            "ASCII | Кириллица | 日本語 | 😀 🚀 ❤️",
+            compose.Modifier
+            :border()
           ),
 
           compose.Row({
@@ -234,7 +257,12 @@ compose.App(function()
                 "Ticks: "
                 .. keyTicks.value
               ),
-            })
+            },
+            compose.Modifier
+            :weight(1)
+            :padding(1)
+            :border()
+          )
           end
         ),
       },
@@ -296,6 +324,173 @@ compose.App(function()
       },
       compose.Modifier
       :fillMaxWidth()
+    ),
+
+    --
+    -- Color / alpha compositing
+    --
+
+    compose.RecomposeScope(
+      "color-mixing",
+      function()
+        local red =
+            compose.Color(0xFF0000, 0.55)
+
+        local green =
+            compose.Color(0x00FF00, 0.55)
+
+        local blue =
+            compose.Color(0x0000FF, 0.55)
+
+        local function swatch(label, color)
+          return compose.Box({
+              compose.Text(
+                label,
+                compose.Modifier:align(
+                  "center",
+                  "center"
+                )
+              ),
+            },
+            compose.Modifier
+            :width(5)
+            :height(3)
+            :border()
+            :background(color)
+          )
+        end
+
+        local function swatches(title, alpha)
+          return compose.Column({
+              compose.Text(title),
+
+              compose.Row({
+                  swatch("R", compose.Color(0xFF0000, alpha)),
+                  swatch("G", compose.Color(0x00FF00, alpha)),
+                  swatch("B", compose.Color(0x0000FF, alpha)),
+                }),
+            },
+            compose.Modifier
+          )
+        end
+
+        local function square(label, color, x)
+          return compose.Box({
+              compose.Text(
+                label,
+                compose.Modifier:align(
+                  "center",
+                  "center"
+                )
+              ),
+            },
+            compose.Modifier
+            :width(9)
+            :height(3)
+            :background(color)
+            :offset(x, 0)
+          )
+        end
+
+        return compose.Column({
+            compose.Row({
+                swatches("OPAQUE / 1", 1),
+                compose.Spacer(compose.Modifier:width(4)),
+                swatches("CLEAR / 0", 0),
+                compose.Spacer(compose.Modifier:width(4)),
+                swatches("PLAIN / .5", 0.5),
+                compose.Spacer(compose.Modifier:width(4)),
+
+                compose.Column({
+                    compose.Text("OVERLAP / .55"),
+
+                    compose.Box({
+                        square("R", red, 0),
+                        square("G", green, 3),
+                        square("B", blue, 6),
+                      },
+                      compose.Modifier
+                      :width(15)
+                      :height(3)
+                    ),
+                  }),
+                compose.Spacer(compose.Modifier:width(4)),
+
+                compose.Column({
+                    compose.Text("ON WHITE"),
+
+                    compose.Box({
+                        square("R", red, 0),
+                        square("G", green, 3),
+                        square("B", blue, 6),
+                      },
+                      compose.Modifier
+                      :width(15)
+                      :height(3)
+                      :background(0xFFFFFF)
+                    ),
+                  }),
+                compose.Spacer(compose.Modifier:width(4)),
+
+                compose.Column({
+                    compose.Text("SCRIM / .5"),
+
+                    compose.Box({
+                        compose.Text(
+                          "DEFAULT WHITE",
+                          compose.Modifier:align(
+                            "center",
+                            "center"
+                          )
+                        ),
+
+                        compose.Box({},
+                          compose.Modifier
+                          :fillMaxWidth()
+                          :fillMaxHeight()
+                          :scrim(0xFF0000, 0.5)
+                        ),
+                      },
+                      compose.Modifier
+                      :width(15)
+                      :height(3)
+                      :background(0x0000FF)
+                    ),
+                  }),
+                compose.Spacer(compose.Modifier:width(4)),
+
+                compose.Column({
+                    compose.Text("TEXT / .25"),
+
+                    compose.Box({
+                        compose.Text(
+                          "WHITE .25",
+                          compose.Modifier
+                          :align("center", "center")
+                          :foreground(
+                            compose.Color(
+                              0xFFFFFF,
+                              0.25
+                            )
+                          )
+                        ),
+                      },
+                      compose.Modifier
+                      :width(15)
+                      :height(3)
+                      :background(0x003366)
+                    ),
+                  }),
+              },
+              compose.Modifier:fillMaxWidth()
+            ),
+          },
+          compose.Modifier
+          :fillMaxWidth()
+          :padding(1)
+          :border()
+        )
+      end
     ),
 
     --

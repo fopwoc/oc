@@ -5,8 +5,21 @@ local event = require("event")
 local host = {}
 
 local function isLocalInput(item)
-  local gpu = component.gpu
-  local screen = gpu.getScreen()
+  local ok, gpu =
+      pcall(function()
+        return component.gpu
+      end)
+
+  if not ok or not gpu then
+    return false
+  end
+
+  local ok, screen =
+      pcall(gpu.getScreen)
+
+  if not ok or not screen then
+    return false
+  end
 
   if not screen then
     return false
@@ -22,10 +35,16 @@ local function isLocalInput(item)
   end
 
   if item.type == "keyDown" or item.type == "keyUp" then
-    local keyboards = component.invoke(
-      screen,
-      "getKeyboards"
-    )
+    local invokeOk, keyboards =
+        pcall(
+          component.invoke,
+          screen,
+          "getKeyboards"
+        )
+
+    if not invokeOk or type(keyboards) ~= "table" then
+      return false
+    end
 
     for _, address in ipairs(keyboards) do
       if item.keyboard == address then

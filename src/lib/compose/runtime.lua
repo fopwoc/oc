@@ -24,6 +24,38 @@ local function now()
   return getPlatform().now()
 end
 
+local function recordWork(startedAt, finishedAt)
+  if not composition or not composition.metrics then
+    return
+  end
+
+  local metrics = composition.metrics
+  local elapsed = math.max(0, finishedAt - startedAt)
+
+  metrics.busySeconds =
+      metrics.busySeconds + elapsed
+
+  metrics.iterations =
+      metrics.iterations + 1
+
+  local window =
+      math.max(0, finishedAt - metrics.windowStarted)
+
+  if window < 1 then
+    return
+  end
+
+  metrics.cpuPercent = math.floor(
+    math.max(0, math.min(100,
+      metrics.busySeconds / window * 100
+    )) + 0.5
+  )
+
+  metrics.windowSeconds = window
+  metrics.busySeconds = 0
+  metrics.windowStarted = finishedAt
+end
+
 
 local function createScope(key, parent)
   return {
@@ -686,11 +718,21 @@ local function processInput()
     if isLocalInput(item) then
       -- Global quit shortcut.
       if item.type == "keyDown" then
-        if
-            item.char
-            == string.byte("q")
-            or item.char
-            == string.byte("Q")
+        local handled = false
+
+        if composition.keyHandler then
+          handled =
+              composition.keyHandler(item)
+              == true
+        end
+
+        if not handled
+            and (
+              item.char
+              == string.byte("q")
+              or item.char
+              == string.byte("Q")
+            )
         then
           composition.running =
               false
@@ -784,6 +826,55 @@ function runtime.invalidate()
   end
 end
 
+function runtime.setKeyHandler(handler)
+  assert(
+    type(handler) == "function",
+    "setKeyHandler() requires a function"
+  )
+
+  assert(
+    composition,
+    "setKeyHandler() outside Compose App"
+  )
+
+  composition.keyHandler = handler
+end
+
+function runtime.quit()
+  if composition then
+    composition.running = false
+  end
+end
+
+function runtime.uptime()
+  assert(
+    composition,
+    "uptime() outside Compose App"
+  )
+
+  return math.max(
+    0,
+    now() - composition.startedAt
+  )
+end
+
+function runtime.metrics()
+  assert(
+    composition,
+    "metrics() outside Compose App"
+  )
+
+  local metrics = composition.metrics
+
+  return {
+    cpuPercent = metrics.cpuPercent,
+    cpuEstimated = true,
+    busySeconds = metrics.busySeconds,
+    windowSeconds = metrics.windowSeconds,
+    iterations = metrics.iterations,
+  }
+end
+
 local function validatePlatform(platform)
   assert(
     type(platform) == "table",
@@ -845,11 +936,23 @@ function runtime.App(content, render, options)
   validatePlatform(platform)
   activePlatform = platform
 
+  local startedAt =
+      platform.now()
+
   composition = {
     effects = {},
     dirty = true,
     layoutDirty = true,
     running = true,
+    startedAt = startedAt,
+    metrics = {
+      windowStarted = startedAt,
+      windowSeconds = 0,
+      busySeconds = 0,
+      cpuPercent = 0,
+      iterations = 0,
+    },
+    keyHandler = nil,
     layout = nil,
     tree = nil,
   }
@@ -864,6 +967,8 @@ function runtime.App(content, render, options)
 
   local ok, err = pcall(function()
     while composition.running do
+      local workStartedAt = now()
+
       runEffects()
       processInput()
 
@@ -893,6 +998,11 @@ function runtime.App(content, render, options)
       if not composition.running then
         break
       end
+
+      recordWork(
+        workStartedAt,
+        now()
+      )
 
       pullInput(
         math.min(

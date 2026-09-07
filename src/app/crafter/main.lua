@@ -233,42 +233,7 @@ compose.App(function()
       revision.value
 
 
-  local rows = {
-    compose.Row({
-        compose.Text(
-          "CRAFTER",
-          compose.Modifier
-          :foreground(
-            colors.primary
-          )
-        ),
-
-        compose.Spacer(
-          compose.Modifier
-          :weight(1)
-        ),
-
-        compose.Text(
-          playing.value
-          and "● RUNNING"
-          or "● PAUSED",
-          compose.Modifier
-          :foreground(
-            playing.value
-            and colors.success
-            or colors.danger
-          )
-        ),
-      },
-      compose.Modifier
-      :fillMaxWidth()
-    ),
-
-    compose.Spacer(
-      compose.Modifier
-      :height(1)
-    ),
-  }
+  local rows = {}
 
 
   for _, target in ipairs(
@@ -356,54 +321,48 @@ compose.App(function()
 
 
   rows[#rows + 1] =
-      compose.Row({
-          components.Button(
-            playing.value
-            and "PAUSE"
-            or "PLAY",
-
-            function()
-              playing.value =
-                  not playing.value
-            end,
-
-            compose.Modifier
-            :foreground(
-              playing.value
-              and colors.warning
-              or colors.success
-            )
-          ),
-
-          compose.Spacer(
-            compose.Modifier
-            :weight(1)
-          ),
-
-          compose.Text(
-            "Q to exit",
-            compose.Modifier
-            :foreground(
-              colors.muted
-            )
-          ),
-        },
-        compose.Modifier
-        :fillMaxWidth()
+      compose.Spacer(
+        compose.Modifier:weight(1)
       )
 
-
-  return compose.Column(
-    rows,
-    compose.Modifier
-    :fillMaxWidth()
-    :fillMaxHeight()
-    :background(
-      colors.background
-    )
-    :foreground(
-      colors.text
-    )
-    :padding(1)
-  )
+  return components.Entrypoint({
+    title = "Crafter",
+    point = false,
+    colors = colors,
+    service = "scheduler",
+    topBarActions = function()
+      return compose.Text(
+        playing.value
+        and "● RUNNING"
+        or "● PAUSED",
+        compose.Modifier:foreground(
+          playing.value
+          and colors.success
+          or colors.danger
+        )
+      )
+    end,
+    bottomBarActions = function()
+      return components.Button(
+        playing.value
+        and "PAUSE"
+        or "PLAY",
+        function()
+          playing.value = not playing.value
+        end,
+        compose.Modifier:foreground(
+          playing.value
+          and colors.warning
+          or colors.success
+        )
+      )
+    end,
+    content = compose.Column(
+      rows,
+      compose.Modifier
+      :fillMaxWidth()
+      :fillMaxHeight()
+      :padding(1)
+    ),
+  })
 end)

@@ -1,6 +1,7 @@
 local debug = {}
 
-local enabled = true
+-- Recomposition colors are a development aid and must not alter normal UI.
+local enabled = false
 
 local recompositionColors = {
   0xFF0055,   -- hot pink

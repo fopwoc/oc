@@ -15,8 +15,13 @@ function card.Card(
       border
       or {}
 
+  local content =
+      compose.Column(
+        children or {}
+      )
+
   return compose.Box(
-    children or {},
+    {content},
     modifier
     :border(
       border.color,

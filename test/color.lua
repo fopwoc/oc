@@ -24,6 +24,15 @@ assertEqual(
 
 assertEqual(
   color.blend(
+    color.create(0xFFFFFF, 0.5),
+    0x0000FF
+  ),
+  0x8080FF,
+  "semi-transparent text over solid background"
+)
+
+assertEqual(
+  color.blend(
     color.create(0x0000FF, 0.5),
     0x000000
   ),

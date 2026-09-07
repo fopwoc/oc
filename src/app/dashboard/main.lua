@@ -468,39 +468,7 @@ compose.App(function()
   local sources =
       dashboard:all()
 
-  local rows = {
-    compose.Row({
-        compose.Text(
-          "DASHBOARD",
-          compose.Modifier
-          :foreground(
-            colors.primary
-          )
-        ),
-
-        compose.Spacer(
-          compose.Modifier
-          :weight(1)
-        ),
-
-        compose.Text(
-          tostring(#sources)
-          .. " SOURCES",
-          compose.Modifier
-          :foreground(
-            colors.muted
-          )
-        ),
-      },
-      compose.Modifier
-      :fillMaxWidth()
-    ),
-
-    compose.Spacer(
-      compose.Modifier
-      :height(1)
-    ),
-  }
+  local rows = {}
 
 
   if #sources == 0 then
@@ -558,45 +526,23 @@ compose.App(function()
       )
 
 
-  rows[#rows + 1] =
-      compose.Row({
-          compose.Text(
-            "Telemetry :4242",
-            compose.Modifier
-            :foreground(
-              colors.muted
-            )
-          ),
-
-          compose.Spacer(
-            compose.Modifier
-            :weight(1)
-          ),
-
-          compose.Text(
-            "Q to exit",
-            compose.Modifier
-            :foreground(
-              colors.muted
-            )
-          ),
-        },
-        compose.Modifier
-        :fillMaxWidth()
+  return components.Entrypoint({
+    title = "Dashboard",
+    point = false,
+    colors = colors,
+    service = "Telemetry :4242",
+    topBarActions = function()
+      return compose.Text(
+        tostring(#sources) .. " SOURCES",
+        compose.Modifier:foreground(colors.muted)
       )
-
-
-  return compose.Column(
-    rows,
-    compose.Modifier
-    :fillMaxWidth()
-    :fillMaxHeight()
-    :background(
-      colors.background
-    )
-    :foreground(
-      colors.text
-    )
-    :padding(1)
-  )
+    end,
+    content = compose.Column(
+      rows,
+      compose.Modifier
+      :fillMaxWidth()
+      :fillMaxHeight()
+      :padding(1)
+    ),
+  })
 end)

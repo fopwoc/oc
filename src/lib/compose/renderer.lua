@@ -7,9 +7,51 @@ local debug = require("lib.compose.debug")
 local renderer = {}
 
 local previousFrame = nil
+local lastMetrics = {
+  changedCells = 0,
+  gpuWrites = 0,
+  foregroundChanges = 0,
+  backgroundChanges = 0,
+  cells = 0,
+  gpuActivityPercent = 0,
+  gpuEstimated = true,
+}
 
 local function defaultGpu()
-  return require("component").gpu
+  local component = require("component")
+
+  if not component.isAvailable("gpu") then
+    error(
+      "Compose requires a GPU component",
+      0
+    )
+  end
+
+  local gpu = component.gpu
+  local ok, screen = pcall(gpu.getScreen)
+
+  if not ok or not screen then
+    error(
+      "Compose requires a GPU bound to a screen",
+      0
+    )
+  end
+
+  return gpu
+end
+
+local function getResolution(gpu)
+  local ok, width, height =
+      pcall(gpu.getResolution)
+
+  if not ok or not width or not height then
+    error(
+      "Compose could not read the bound screen resolution",
+      0
+    )
+  end
+
+  return width, height
 end
 
 local function getStyle(node)
@@ -745,7 +787,7 @@ function renderer.render(tree, options)
 
   local width,
   height =
-      gpu.getResolution()
+      getResolution(gpu)
 
   local measured =
       layout.measure(
@@ -770,11 +812,33 @@ function renderer.render(tree, options)
     }
   )
 
-  framebuffer.present(
+  local presentMetrics =
+      framebuffer.present(
     gpu,
     frame,
     previousFrame
   )
+
+  local activityPercent = 0
+
+  if presentMetrics.cells > 0 then
+    activityPercent = math.floor(
+      presentMetrics.changedCells
+      / presentMetrics.cells
+      * 100
+      + 0.5
+    )
+  end
+
+  lastMetrics = {
+    changedCells = presentMetrics.changedCells,
+    gpuWrites = presentMetrics.gpuWrites,
+    foregroundChanges = presentMetrics.foregroundChanges,
+    backgroundChanges = presentMetrics.backgroundChanges,
+    cells = presentMetrics.cells,
+    gpuActivityPercent = activityPercent,
+    gpuEstimated = true,
+  }
 
   previousFrame =
       frame
@@ -782,8 +846,28 @@ function renderer.render(tree, options)
   return measured
 end
 
+function renderer.metrics()
+  local result = {}
+
+  for key, value in pairs(lastMetrics) do
+    result[key] = value
+  end
+
+  return result
+end
+
 function renderer.reset(options)
   previousFrame = nil
+
+  lastMetrics = {
+    changedCells = 0,
+    gpuWrites = 0,
+    foregroundChanges = 0,
+    backgroundChanges = 0,
+    cells = 0,
+    gpuActivityPercent = 0,
+    gpuEstimated = true,
+  }
 
   local gpu =
       options
@@ -792,7 +876,7 @@ function renderer.reset(options)
 
   local width,
   height =
-      gpu.getResolution()
+      getResolution(gpu)
 
   gpu.setForeground(0xFFFFFF)
   gpu.setBackground(0x000000)

@@ -4,7 +4,7 @@ local computer = require("computer")
 
 local args = {...}
 
-local DEFAULT_SOURCE = "https://raw.githubusercontent.com/USER/REPO/main/src"
+local DEFAULT_SOURCE = "https://raw.githubusercontent.com/fopwoc/oc/main/src"
 
 local ROOT = shell.getWorkingDirectory()
 

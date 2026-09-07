@@ -15,19 +15,25 @@ end
 local frame = framebuffer.create(2, 1)
 
 framebuffer.setForeground(frame, 0xFFFFFF)
-framebuffer.setBackground(frame, 0x000000)
+framebuffer.setBackground(frame, 0x0000FF)
 framebuffer.write(frame, 1, 1, "A")
 
 framebuffer.setForeground(
   frame,
-  color.create(0xFF0000, 0.5)
+  color.create(0xFFFFFF, 0.5)
 )
 framebuffer.writeForeground(frame, 1, 1, "A")
 
 assertEqual(
   frame.foreground[1],
-  0xFF8080,
-  "semi-transparent foreground"
+  0x8080FF,
+  "semi-transparent foreground over background"
+)
+
+assertEqual(
+  frame.background[1],
+  0x0000FF,
+  "transparent foreground preserves background"
 )
 
 framebuffer.setBackground(
@@ -42,8 +48,14 @@ assertEqual(
   "semi-transparent background"
 )
 
+local layeredFrame = framebuffer.create(1, 1)
+
+framebuffer.setForeground(layeredFrame, 0xFFFFFF)
+framebuffer.setBackground(layeredFrame, 0x000000)
+framebuffer.write(layeredFrame, 1, 1, "A")
+
 framebuffer.tint(
-  frame,
+  layeredFrame,
   1,
   1,
   1,
@@ -51,7 +63,7 @@ framebuffer.tint(
   color.create(0xFF0000, 0.5)
 )
 framebuffer.tint(
-  frame,
+  layeredFrame,
   1,
   1,
   1,
@@ -59,7 +71,7 @@ framebuffer.tint(
   color.create(0x00FF00, 0.5)
 )
 framebuffer.tint(
-  frame,
+  layeredFrame,
   1,
   1,
   1,
@@ -68,8 +80,8 @@ framebuffer.tint(
 )
 
 assertEqual(
-  frame.foreground[1],
-  0x405090,
+  layeredFrame.foreground[1],
+  0x4060A0,
   "layered color tint"
 )
 
