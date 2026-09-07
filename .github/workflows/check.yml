@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Lua
         run: |
@@ -37,7 +37,7 @@ jobs:
         run: tar -czf oc-source.tar.gz src check.sh devserver.sh
 
       - name: Upload source package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oc-source
           path: oc-source.tar.gz
