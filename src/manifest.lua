@@ -14,6 +14,7 @@ return {
       "lib/compose/input.lua",
       "lib/compose/input_target.lua",
       "lib/compose/scroll.lua",
+      "lib/compose/navigation.lua",
     },
   },
 
@@ -60,7 +61,7 @@ return {
       description = "unicode test",
     },
 
-    test_colors = {
+  test_colors = {
       depends = {
         "compose",
       },
@@ -75,6 +76,17 @@ return {
     files = {
       "lib/telemetry/protocol.lua",
     },
+  },
+
+  test_navigation = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "test/navigation.lua",
+    },
+    run = "test/navigation.lua",
+    description = "Navigation showcase",
   },
 
   telemetry_sender = {
@@ -121,7 +133,6 @@ return {
     run = "app/dashboard/main.lua",
     description = "Craft Dashboard",
   },
-
 
   rain = {
     files = {

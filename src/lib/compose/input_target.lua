@@ -1,5 +1,19 @@
 local inputTarget = {}
 
+local function isVisible(node)
+  if not node.modifier then
+    return true
+  end
+
+  for _, element in ipairs(node.modifier.elements or {}) do
+    if element.type == "visible" then
+      return element.value
+    end
+  end
+
+  return true
+end
+
 local function contains(
     node,
     x,
@@ -60,6 +74,10 @@ local function search(
     parentX,
     parentY
 )
+  if not isVisible(node.node) then
+    return nil
+  end
+
   if not contains(
         node,
         x,

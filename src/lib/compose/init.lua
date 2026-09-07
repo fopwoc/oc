@@ -4,6 +4,7 @@ local renderer = require("../lib/compose/renderer")
 local modifier = require("../lib/compose/modifier")
 local color = require("../lib/compose/color")
 local scroll = require("../lib/compose/scroll")
+local navigation = require("../lib/compose/navigation")
 
 local compose = {}
 
@@ -45,6 +46,24 @@ function compose.rememberScrollState()
 
   return holder.value
 end
+
+function compose.rememberNavBackStack(
+    startKey,
+    startArgs
+)
+  local holder =
+      runtime.remember(function()
+        return navigation.create(
+          startKey,
+          startArgs,
+          runtime.invalidate
+        )
+      end)
+
+  return holder.value
+end
+
+compose.NavDisplay = navigation.display
 
 -- Application
 

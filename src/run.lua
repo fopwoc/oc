@@ -3,6 +3,51 @@ local filesystem = require("filesystem")
 
 local ROOT = shell.getWorkingDirectory()
 
+local function matchesModulePrefix(
+    moduleName,
+    prefix
+)
+  if moduleName == prefix then
+    return true
+  end
+
+  if moduleName:sub(1, #prefix + 1)
+      == prefix .. "/"
+  then
+    return true
+  end
+
+  return moduleName:sub(1, #prefix + 1)
+      == prefix .. "."
+end
+
+local function reloadProjectModules()
+  local modulePrefixes = {
+    "../lib",
+    "../app",
+    "lib",
+    "app",
+  }
+
+  local loadedModules = {}
+
+  for moduleName in pairs(package.loaded) do
+    for _, prefix in ipairs(modulePrefixes) do
+      if matchesModulePrefix(moduleName, prefix) then
+        loadedModules[#loadedModules + 1] =
+            moduleName
+        break
+      end
+    end
+  end
+
+  for _, moduleName in ipairs(loadedModules) do
+    package.loaded[moduleName] = nil
+  end
+end
+
+reloadProjectModules()
+
 local INSTALLED_FILE = filesystem.concat(ROOT, ".installed.lua")
 local MANIFEST_FILE = filesystem.concat(ROOT, "manifest.lua")
 

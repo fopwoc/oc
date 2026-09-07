@@ -148,6 +148,14 @@ function Modifier:foreground(color)
   })
 end
 
+function Modifier:visible(value)
+  return append(self, {
+    phase = "visibility",
+    type = "visible",
+    value = value ~= false,
+  })
+end
+
 function Modifier:scrim(value, alpha)
   return append(self, {
     phase = "draw",

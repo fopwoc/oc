@@ -37,6 +37,20 @@ local function getStyle(node)
   return foreground, background
 end
 
+local function isVisible(node)
+  if not node.modifier then
+    return true
+  end
+
+  for _, element in ipairs(node.modifier.elements or {}) do
+    if element.type == "visible" then
+      return element.value
+    end
+  end
+
+  return true
+end
+
 local function getScrim(node)
   if not node.modifier then
     return nil
@@ -535,6 +549,10 @@ local function drawNode(
 )
   local node =
       measured.node
+
+  if not isVisible(node) then
+    return
+  end
 
   local absoluteX =
       parentX + measured.x

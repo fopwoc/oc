@@ -672,6 +672,12 @@ function runtime.invalidateLayout()
   end
 end
 
+function runtime.invalidate()
+  if composition then
+    composition.dirty = true
+  end
+end
+
 local function validatePlatform(platform)
   assert(
     type(platform) == "table",

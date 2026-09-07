@@ -1,25 +1,3 @@
-package.loaded["../lib/compose/init"] = nil
-package.loaded["../lib/compose/runtime"] = nil
-package.loaded["../lib/compose/nodes"] = nil
-package.loaded["../lib/compose/renderer"] = nil
-package.loaded["../lib/compose/framebuffer"] = nil
-package.loaded["../lib/compose/debug"] = nil
-package.loaded["../lib/compose/modifier"] = nil
-package.loaded["../lib/compose/layout"] = nil
-package.loaded["../lib/compose/input"] = nil
-package.loaded["../lib/compose/input_target"] = nil
-package.loaded["../lib/compose/scroll"] = nil
-
-package.loaded["../lib/components/init"] = nil
-package.loaded["../lib/components/card"] = nil
-package.loaded["../lib/components/button"] = nil
-package.loaded["../lib/components/toggle"] = nil
-package.loaded["../lib/components/dialog"] = nil
-
-package.loaded["../lib/telemetry/receiver"] = nil
-package.loaded["../lib/telemetry/protocol"] = nil
-
-
 local compose = require("../lib/compose/init")
 
 local components = require("../lib/components/init")

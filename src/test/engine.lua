@@ -10,10 +10,6 @@ require = function(name)
   return nativeRequire(name:gsub("/", "."))
 end
 
-package.loaded["lib.compose.runtime"] = nil
-package.loaded["lib.compose.input"] = nil
-package.loaded["lib.compose.input_target"] = nil
-
 local runtime = require("../lib/compose/runtime")
 
 local pullCount = 0
