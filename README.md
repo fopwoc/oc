@@ -21,7 +21,7 @@ It contains
 From an OpenOS computer:
 
 ```sh
-wget -f https://raw.githubusercontent.com/fopwoc/oc/main/src/install.lua ./install.lua
+wget -f https://raw.githubusercontent.com/fopwoc/oc/master/src/install.lua ./install.lua
 ./install.lua --help
 ```
 
