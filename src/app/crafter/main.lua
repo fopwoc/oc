@@ -1,37 +1,37 @@
 local filesystem =
-  require("filesystem")
+    require("filesystem")
 
 local shell =
-  require("shell")
+    require("shell")
 
 local compose =
-  require("../lib/compose/init")
+    require("../lib/compose/init")
 
 local components =
-  require("../lib/components/init")
+    require("../lib/components/init")
 
 local schedulerModule =
-  require("../app/crafter/scheduler")
+    require("../app/crafter/scheduler")
 
 local telemetry =
-  require("../lib/telemetry/sender")
+    require("../lib/telemetry/sender")
 
 
 local CONFIG_PATH =
-  filesystem.canonical(
-    filesystem.concat(
-      shell.getWorkingDirectory(),
-      "app/crafter/config.lua"
+    filesystem.canonical(
+      filesystem.concat(
+        shell.getWorkingDirectory(),
+        "app/crafter/config.lua"
+      )
     )
-  )
 
 local CONFIG_EXAMPLE_PATH =
-  filesystem.canonical(
-    filesystem.concat(
-      shell.getWorkingDirectory(),
-      "app/crafter/config.example.lua"
+    filesystem.canonical(
+      filesystem.concat(
+        shell.getWorkingDirectory(),
+        "app/crafter/config.example.lua"
+      )
     )
-  )
 
 
 local colors = {
@@ -51,34 +51,34 @@ local colors = {
 
 local function loadConfig()
   if not filesystem.exists(
-    CONFIG_PATH
-  ) then
+        CONFIG_PATH
+      ) then
     error(
       "Crafter configuration not found.\n"
-        .. "\n"
-        .. "Copy:\n"
-        .. "  "
-        .. CONFIG_EXAMPLE_PATH
-        .. "\n"
-        .. "to:\n"
-        .. "  "
-        .. CONFIG_PATH
-        .. "\n"
-        .. "\n"
-        .. "Then edit config.lua and restart Crafter."
+      .. "\n"
+      .. "Copy:\n"
+      .. "  "
+      .. CONFIG_EXAMPLE_PATH
+      .. "\n"
+      .. "to:\n"
+      .. "  "
+      .. CONFIG_PATH
+      .. "\n"
+      .. "\n"
+      .. "Then edit config.lua and restart Crafter."
     )
   end
 
   local ok, config =
-    pcall(
-      dofile,
-      CONFIG_PATH
-    )
+      pcall(
+        dofile,
+        CONFIG_PATH
+      )
 
   if not ok then
     error(
       "Failed to load Crafter configuration:\n"
-        .. tostring(config)
+      .. tostring(config)
     )
   end
 
@@ -89,22 +89,22 @@ end
 local function statusInfo(target)
   if target.status == "crafting" then
     return "CRAFTING",
-      colors.success
+        colors.success
   end
 
   if target.status == "cooldown" then
     return "COOLDOWN",
-      colors.warning
+        colors.warning
   end
 
   return "WAITING",
-    colors.muted
+      colors.muted
 end
 
 
 local function telemetryState(
-  scheduler,
-  playing
+    scheduler,
+    playing
 )
   local crafting = 0
   local waiting = 0
@@ -119,79 +119,77 @@ local function telemetryState(
   ) do
     if target.status == "crafting" then
       crafting =
-        crafting + 1
-
+          crafting + 1
     elseif target.status == "cooldown" then
       cooldown =
-        cooldown + 1
-
+          cooldown + 1
     else
       waiting =
-        waiting + 1
+          waiting + 1
     end
 
     requests =
-      requests
+        requests
         + target.requests
 
     completed =
-      completed
+        completed
         + target.completed
 
     canceled =
-      canceled
+        canceled
         + target.canceled
   end
 
   return {
     playing =
-      playing,
+        playing,
 
     targets =
-      #scheduler.targets,
+        #scheduler.targets,
 
     crafting =
-      crafting,
+        crafting,
 
     waiting =
-      waiting,
+        waiting,
 
     cooldown =
-      cooldown,
+        cooldown,
 
     requests =
-      requests,
+        requests,
 
     completed =
-      completed,
+        completed,
 
     canceled =
-      canceled,
+        canceled,
   }
 end
 
 
 local config =
-  loadConfig()
+    loadConfig()
 
 local scheduler =
-  schedulerModule.create(
-    config
-  )
+    schedulerModule.create(
+      config
+    )
 
 local telemetrySender =
-  telemetry.create({
-    source = "crafter",
-    id = "main-crafter",
-  })
+    telemetry.create({
+      source = "crafter",
+      id = "main-crafter",
+    })
 
 
 compose.App(function()
   local playing =
-    compose.remember(true)
+      compose.remember(true)
 
   local revision =
-    compose.remember(0)
+      compose.remember(0)
 
 
   compose.LaunchedEffect(
@@ -203,7 +201,7 @@ compose.App(function()
         )
 
         revision.value =
-          revision.value + 1
+            revision.value + 1
 
         compose.delay(0.25)
       end
@@ -232,43 +230,43 @@ compose.App(function()
   -- Depend on scheduler snapshots.
   --
   local _ =
-    revision.value
+      revision.value
 
 
   local rows = {
     compose.Row({
-      compose.Text(
-        "CRAFTER",
-        compose.Modifier
+        compose.Text(
+          "CRAFTER",
+          compose.Modifier
           :foreground(
             colors.primary
           )
-      ),
+        ),
 
-      compose.Spacer(
-        compose.Modifier
+        compose.Spacer(
+          compose.Modifier
           :weight(1)
-      ),
+        ),
 
-      compose.Text(
-        playing.value
+        compose.Text(
+          playing.value
           and "● RUNNING"
           or "● PAUSED",
-        compose.Modifier
+          compose.Modifier
           :foreground(
             playing.value
-              and colors.success
-              or colors.danger
+            and colors.success
+            or colors.danger
           )
-      ),
-    },
+        ),
+      },
       compose.Modifier
-        :fillMaxWidth()
+      :fillMaxWidth()
     ),
 
     compose.Spacer(
       compose.Modifier
-        :height(1)
+      :height(1)
     ),
   }
 
@@ -277,41 +275,41 @@ compose.App(function()
     scheduler.targets
   ) do
     local status,
-      statusColor =
+    statusColor =
         statusInfo(target)
 
     rows[#rows + 1] =
-      components.Card(
-        {
-          compose.Column({
-            compose.Row({
-              compose.Text(
-                target.label,
-                compose.Modifier
-                  :foreground(
-                    colors.primary
-                  )
-              ),
+        components.Card(
+          {
+            compose.Column({
+              compose.Row({
+                  compose.Text(
+                    target.label,
+                    compose.Modifier
+                    :foreground(
+                      colors.primary
+                    )
+                  ),
 
-              compose.Spacer(
-                compose.Modifier
-                  :weight(1)
-              ),
+                  compose.Spacer(
+                    compose.Modifier
+                    :weight(1)
+                  ),
 
-              compose.Text(
-                status,
+                  compose.Text(
+                    status,
+                    compose.Modifier
+                    :foreground(
+                      statusColor
+                    )
+                  ),
+                },
                 compose.Modifier
-                  :foreground(
-                    statusColor
-                  )
-              ),
-            },
-              compose.Modifier
                 :fillMaxWidth()
-            ),
+              ),
 
-            compose.Text(
-              "amount "
+              compose.Text(
+                "amount "
                 .. tostring(
                   target.amount
                 )
@@ -327,85 +325,85 @@ compose.App(function()
                 .. tostring(
                   target.requests
                 ),
-              compose.Modifier
+                compose.Modifier
                 :foreground(
                   colors.muted
                 )
-            ),
-          })
-        },
+              ),
+            })
+          },
 
-        compose.Modifier
+          compose.Modifier
           :fillMaxWidth()
           :background(
             colors.surface
           ),
 
-        {
-          color =
-            target.status == "crafting"
-              and colors.success
-              or colors.border,
-        }
-      )
+          {
+            color =
+                target.status == "crafting"
+                and colors.success
+                or colors.border,
+          }
+        )
 
     rows[#rows + 1] =
-      compose.Spacer(
-        compose.Modifier
+        compose.Spacer(
+          compose.Modifier
           :height(1)
-      )
+        )
   end
 
 
   rows[#rows + 1] =
-    compose.Row({
-      components.Button(
-        playing.value
-          and "PAUSE"
-          or "PLAY",
-
-        function()
-          playing.value =
-            not playing.value
-        end,
-
-        compose.Modifier
-          :foreground(
+      compose.Row({
+          components.Button(
             playing.value
+            and "PAUSE"
+            or "PLAY",
+
+            function()
+              playing.value =
+                  not playing.value
+            end,
+
+            compose.Modifier
+            :foreground(
+              playing.value
               and colors.warning
               or colors.success
-          )
-      ),
+            )
+          ),
 
-      compose.Spacer(
-        compose.Modifier
-          :weight(1)
-      ),
+          compose.Spacer(
+            compose.Modifier
+            :weight(1)
+          ),
 
-      compose.Text(
-        "Q to exit",
+          compose.Text(
+            "Q to exit",
+            compose.Modifier
+            :foreground(
+              colors.muted
+            )
+          ),
+        },
         compose.Modifier
-          :foreground(
-            colors.muted
-          )
-      ),
-    },
-      compose.Modifier
         :fillMaxWidth()
-    )
+      )
 
 
   return compose.Column(
     rows,
     compose.Modifier
-      :fillMaxWidth()
-      :fillMaxHeight()
-      :background(
-        colors.background
-      )
-      :foreground(
-        colors.text
-      )
-      :padding(1)
+    :fillMaxWidth()
+    :fillMaxHeight()
+    :background(
+      colors.background
+    )
+    :foreground(
+      colors.text
+    )
+    :padding(1)
   )
 end)

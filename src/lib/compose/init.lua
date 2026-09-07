@@ -31,13 +31,13 @@ compose.Modifier = modifier.Modifier
 
 function compose.rememberScrollState()
   local holder =
-    runtime.remember(nil)
+      runtime.remember(nil)
 
   if not holder.value then
     holder.value =
-      scroll.createState(
-        runtime.invalidateLayout
-      )
+        scroll.createState(
+          runtime.invalidateLayout
+        )
   end
 
   return holder.value
@@ -46,7 +46,7 @@ end
 -- Application
 
 function compose.App(content)
-    renderer.reset()
+  renderer.reset()
 
   runtime.App(
     content,

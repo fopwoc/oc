@@ -23,13 +23,13 @@ end
 
 function ScrollState:scrollTo(value)
   local newValue =
-    math.max(
-      0,
-      math.min(
-        self.maxValue,
-        value
+      math.max(
+        0,
+        math.min(
+          self.maxValue,
+          value
+        )
       )
-    )
 
   if newValue == self.value then
     return self.value
@@ -46,10 +46,10 @@ end
 
 function ScrollState:setMaxValue(value)
   local maxValue =
-    math.max(
-      0,
-      value or 0
-    )
+      math.max(
+        0,
+        value or 0
+      )
 
   self.maxValue = maxValue
 

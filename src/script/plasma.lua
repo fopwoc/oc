@@ -1,41 +1,41 @@
 local component =
-  require("component")
+    require("component")
 
 local computer =
-  require("computer")
+    require("computer")
 
 local event =
-  require("event")
+    require("event")
 
 local framebuffer =
-  require("../lib/compose/framebuffer")
+    require("../lib/compose/framebuffer")
 
 
 local gpu =
-  component.gpu
+    component.gpu
 
 local width,
-  height =
+height =
     gpu.getResolution()
 
 
 local previous =
-  nil
+    nil
 
 local mode =
-  1
+    1
 
 local fps =
-  0
+    0
 
 local frameMs =
-  0
+    0
 
 local presentMs =
-  0
+    0
 
 local lastFrame =
-  computer.uptime()
+    computer.uptime()
 
 
 local chars = {
@@ -59,9 +59,9 @@ local palette = {
 
 
 local function clamp(
-  value,
-  min,
-  max
+    value,
+    min,
+    max
 )
   if value < min then
     return min
@@ -76,45 +76,45 @@ end
 
 
 local function plasmaValue(
-  x,
-  y,
-  time
+    x,
+    y,
+    time
 )
   local a =
-    math.sin(
-      x * 0.16
-      + time * 1.3
-    )
+      math.sin(
+        x * 0.16
+        + time * 1.3
+      )
 
   local b =
-    math.sin(
-      y * 0.23
-      - time * 0.9
-    )
+      math.sin(
+        y * 0.23
+        - time * 0.9
+      )
 
   local c =
-    math.sin(
-      (x + y) * 0.11
-      + time * 0.7
-    )
+      math.sin(
+        (x + y) * 0.11
+        + time * 0.7
+      )
 
   local dx =
-    x - width * 0.5
+      x - width * 0.5
 
   local dy =
-    y - height * 0.5
+      y - height * 0.5
 
   local distance =
-    math.sqrt(
-      dx * dx
-      + dy * dy
-    )
+      math.sqrt(
+        dx * dx
+        + dy * dy
+      )
 
   local d =
-    math.sin(
-      distance * 0.18
-      - time * 1.6
-    )
+      math.sin(
+        distance * 0.18
+        - time * 1.6
+      )
 
   return (
     a
@@ -127,35 +127,35 @@ end
 
 
 local function drawWorstCase(
-  frame,
-  time
+    frame,
+    time
 )
   for y = 1, height do
     for x = 1, width do
       local value =
-        plasmaValue(
-          x,
-          y,
-          time
-        )
+          plasmaValue(
+            x,
+            y,
+            time
+          )
 
       local charIndex =
-        clamp(
-          math.floor(
-            value * #chars
-          ) + 1,
-          1,
-          #chars
-        )
+          clamp(
+            math.floor(
+              value * #chars
+            ) + 1,
+            1,
+            #chars
+          )
 
       local colorIndex =
-        clamp(
-          math.floor(
-            value * #palette
-          ) + 1,
-          1,
-          #palette
-        )
+          clamp(
+            math.floor(
+              value * #palette
+            ) + 1,
+            1,
+            #palette
+          )
 
       framebuffer.setForeground(
         frame,
@@ -179,23 +179,23 @@ end
 
 
 local function drawRowBatched(
-  frame,
-  time
+    frame,
+    time
 )
   for y = 1, height do
     local phase =
-      math.floor(
-        time * 12
-        + y * 2
-      )
+        math.floor(
+          time * 12
+          + y * 2
+        )
 
     local colorIndex =
-      (
-        math.floor(
-          y / 4
-        )
-        % #palette
-      ) + 1
+        (
+          math.floor(
+            y / 4
+          )
+          % #palette
+        ) + 1
 
     framebuffer.setForeground(
       frame,
@@ -211,15 +211,15 @@ local function drawRowBatched(
 
     for x = 1, width do
       local index =
-        (
-          math.floor(
-            (x + phase) / 8
-          )
-          % (#chars - 1)
-        ) + 2
+          (
+            math.floor(
+              (x + phase) / 8
+            )
+            % (#chars - 1)
+          ) + 2
 
       row[x] =
-        chars[index]
+          chars[index]
     end
 
     framebuffer.write(
@@ -233,26 +233,26 @@ end
 
 
 local sparse =
-  {}
+{}
 
 
-  local function initSparse()
-    sparse = {}
+local function initSparse()
+  sparse = {}
 
-    for y = 1, height do
-      sparse[y] = {}
+  for y = 1, height do
+    sparse[y] = {}
 
-      for x = 1, width do
-        sparse[y][x] =
+    for x = 1, width do
+      sparse[y][x] =
           chars[
-            math.random(
-              2,
-              #chars
-            )
+          math.random(
+            2,
+            #chars
+          )
           ]
-      end
     end
   end
+end
 
 
 local function drawSparse(frame)
@@ -261,36 +261,36 @@ local function drawSparse(frame)
   end
 
   local changes =
-    math.max(
-      1,
-      math.floor(
-        width * height * 0.01
+      math.max(
+        1,
+        math.floor(
+          width * height * 0.01
+        )
       )
-    )
 
   for _ = 1, changes do
     local x =
-      math.random(
-        1,
-        width
-      )
+        math.random(
+          1,
+          width
+        )
 
     local y =
-      math.random(
-        1,
-        height
-      )
+        math.random(
+          1,
+          height
+        )
 
     local char =
-      chars[
+        chars[
         math.random(
           1,
           #chars
         )
-      ]
+        ]
 
     sparse[y][x] =
-      char
+        char
   end
 
   framebuffer.setForeground(
@@ -342,37 +342,35 @@ gpu.fill(
 
 while true do
   local frameStart =
-    computer.uptime()
+      computer.uptime()
 
   local delta =
-    frameStart - lastFrame
+      frameStart - lastFrame
 
   lastFrame =
-    frameStart
+      frameStart
 
   if delta > 0 then
     fps =
-      1 / delta
+        1 / delta
   end
 
   local frame =
-    framebuffer.create(
-      width,
-      height
-    )
+      framebuffer.create(
+        width,
+        height
+      )
 
   if mode == 1 then
     drawWorstCase(
       frame,
       frameStart
     )
-
   elseif mode == 2 then
     drawRowBatched(
       frame,
       frameStart
     )
-
   else
     drawSparse(
       frame
@@ -381,14 +379,14 @@ while true do
 
 
   local stats =
-    string.format(
-      " [%d] %s | %.1f FPS | %.1f ms | present %.1f ms | 1/2/3 switch | Q exit ",
-      mode,
-      modeName(),
-      fps,
-      frameMs,
-      presentMs
-    )
+      string.format(
+        " [%d] %s | %.1f FPS | %.1f ms | present %.1f ms | 1/2/3 switch | Q exit ",
+        mode,
+        modeName(),
+        fps,
+        frameMs,
+        presentMs
+      )
 
   framebuffer.setForeground(
     frame,
@@ -409,7 +407,7 @@ while true do
 
 
   local presentStart =
-    computer.uptime()
+      computer.uptime()
 
   framebuffer.present(
     gpu,
@@ -418,19 +416,19 @@ while true do
   )
 
   presentMs =
-    (
-      computer.uptime()
-      - presentStart
-    ) * 1000
+      (
+        computer.uptime()
+        - presentStart
+      ) * 1000
 
   previous =
-    frame
+      frame
 
   frameMs =
-    (
-      computer.uptime()
-      - frameStart
-    ) * 1000
+      (
+        computer.uptime()
+        - frameStart
+      ) * 1000
 
 
   local signal = {
@@ -439,11 +437,11 @@ while true do
 
   if signal[1] == "key_down" then
     local char =
-      signal[3]
+        signal[3]
 
     if
-      char == string.byte("q")
-      or char == string.byte("Q")
+        char == string.byte("q")
+        or char == string.byte("Q")
     then
       break
     elseif char == string.byte("1") then

@@ -1,36 +1,36 @@
 local component =
-  require("component")
+    require("component")
 
 local computer =
-  require("computer")
+    require("computer")
 
 local protocol =
-  require("../lib/telemetry/protocol")
+    require("../lib/telemetry/protocol")
 
 local sender = {}
 
 local modem =
-  component.modem
+    component.modem
 
 
 function sender.create(options)
   options =
-    options or {}
+      options or {}
 
   local source =
-    assert(
-      options.source,
-      "Telemetry source is required"
-    )
+      assert(
+        options.source,
+        "Telemetry source is required"
+      )
 
   local id =
-    assert(
-      options.id,
-      "Telemetry id is required"
-    )
+      assert(
+        options.id,
+        "Telemetry id is required"
+      )
 
   local port =
-    options.port
+      options.port
       or protocol.DEFAULT_PORT
 
   local instance = {}
@@ -38,12 +38,12 @@ function sender.create(options)
 
   function instance:send(data)
     local payload =
-      protocol.encode(
-        source,
-        id,
-        computer.uptime(),
-        data
-      )
+        protocol.encode(
+          source,
+          id,
+          computer.uptime(),
+          data
+        )
 
     return modem.broadcast(
       port,
@@ -51,9 +51,7 @@ function sender.create(options)
     )
   end
 
-
   return instance
 end
-
 
 return sender

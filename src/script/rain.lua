@@ -74,7 +74,7 @@ while true do
   end
 
   -- touch/key = exit
-  local e = {event.pull(0.05)}
+  local e = { event.pull(0.05) }
 
   if e[1] == "key_down" or e[1] == "touch" then
     break

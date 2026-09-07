@@ -45,17 +45,17 @@ local colors = {
 
 
 local STALE_AFTER =
-  3
+    3
 
 local OFFLINE_AFTER =
-  10
+    10
 
 
 local receiver =
-  telemetry.create()
+    telemetry.create()
 
 local dashboard =
-  stateModule.create()
+    stateModule.create()
 
 
 receiver:open()
@@ -63,20 +63,20 @@ receiver:open()
 
 local function sourceStatus(source)
   local age =
-    dashboard:age(source)
+      dashboard:age(source)
 
   if age >= OFFLINE_AFTER then
     return "OFFLINE",
-      colors.danger
+        colors.danger
   end
 
   if age >= STALE_AFTER then
     return "STALE",
-      colors.warning
+        colors.warning
   end
 
   return "ONLINE",
-    colors.success
+      colors.success
 end
 
 
@@ -93,46 +93,46 @@ end
 
 local function formatUptime(seconds)
   seconds =
-    math.floor(
-      seconds or 0
-    )
+      math.floor(
+        seconds or 0
+      )
 
   local hours =
-    math.floor(
-      seconds / 3600
-    )
+      math.floor(
+        seconds / 3600
+      )
 
   local minutes =
-    math.floor(
-      (seconds % 3600) / 60
-    )
+      math.floor(
+        (seconds % 3600) / 60
+      )
 
   if hours > 0 then
     return tostring(hours)
-      .. "h "
-      .. tostring(minutes)
-      .. "m"
+        .. "h "
+        .. tostring(minutes)
+        .. "m"
   end
 
   return tostring(minutes)
-    .. "m"
+      .. "m"
 end
 
 local function formatNumber(value)
   value =
-    math.floor(
-      tonumber(value) or 0
-    )
+      math.floor(
+        tonumber(value) or 0
+      )
 
   local text =
-    tostring(value)
+      tostring(value)
 
   while true do
     local formatted, count =
-      text:gsub(
-        "^(-?%d+)(%d%d%d)",
-        "%1,%2"
-      )
+        text:gsub(
+          "^(-?%d+)(%d%d%d)",
+          "%1,%2"
+        )
 
     text = formatted
 
@@ -146,386 +146,386 @@ end
 
 
 local function stat(
-  label,
-  value,
-  color
+    label,
+    value,
+    color
 )
   return compose.Column({
     compose.Text(
       label,
       compose.Modifier
-        :foreground(
-          colors.muted
-        )
+      :foreground(
+        colors.muted
+      )
     ),
 
     compose.Text(
       formatNumber(value),
       compose.Modifier
-        :foreground(
-          color or colors.text
-        )
+      :foreground(
+        color or colors.text
+      )
     ),
   })
 end
 
 
 local function crafterCard(
-  source,
-  status,
-  statusColor,
-  age
+    source,
+    status,
+    statusColor,
+    age
 )
   local data =
-    source.data or {}
+      source.data or {}
 
   local activity =
-    data.playing
+      data.playing
       and "RUNNING"
       or "PAUSED"
 
   local activityColor =
-    data.playing
+      data.playing
       and colors.success
       or colors.warning
 
   -- Transport status takes precedence.
   if status ~= "ONLINE" then
     activity =
-      status
+        status
 
     activityColor =
-      statusColor
+        statusColor
   end
 
   return components.Card(
     {
       compose.Column({
         compose.Row({
-          compose.Text(
-            source.id,
-            compose.Modifier
+            compose.Text(
+              source.id,
+              compose.Modifier
               :foreground(
                 colors.primary
               )
-          ),
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          compose.Text(
-            "● " .. activity,
-            compose.Modifier
+            compose.Text(
+              "● " .. activity,
+              compose.Modifier
               :foreground(
                 activityColor
               )
-          ),
-        },
+            ),
+          },
           compose.Modifier
-            :fillMaxWidth()
+          :fillMaxWidth()
         ),
 
         compose.Text(
           "CRAFTER",
           compose.Modifier
-            :foreground(
-              colors.muted
-            )
+          :foreground(
+            colors.muted
+          )
         ),
 
         compose.Spacer(
           compose.Modifier
-            :height(1)
+          :height(1)
         ),
 
         compose.Row({
-          stat(
-            "TARGETS",
-            data.targets
-          ),
+            stat(
+              "TARGETS",
+              data.targets
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          stat(
-            "CRAFTING",
-            data.crafting,
-            colors.success
-          ),
+            stat(
+              "CRAFTING",
+              data.crafting,
+              colors.success
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          stat(
-            "WAITING",
-            data.waiting
-          ),
+            stat(
+              "WAITING",
+              data.waiting
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          stat(
-            "COOLDOWN",
-            data.cooldown,
-            colors.warning
-          ),
-        },
+            stat(
+              "COOLDOWN",
+              data.cooldown,
+              colors.warning
+            ),
+          },
           compose.Modifier
-            :fillMaxWidth()
+          :fillMaxWidth()
         ),
 
         compose.Spacer(
           compose.Modifier
-            :height(1)
+          :height(1)
         ),
 
         compose.Row({
-          stat(
-            "REQUESTS",
-            data.requests
-          ),
+            stat(
+              "REQUESTS",
+              data.requests
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          stat(
-            "COMPLETED",
-            data.completed,
-            colors.success
-          ),
+            stat(
+              "COMPLETED",
+              data.completed,
+              colors.success
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          stat(
-            "CANCELED",
-            data.canceled,
-            colors.danger
-          ),
+            stat(
+              "CANCELED",
+              data.canceled,
+              colors.danger
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
-        },
+            ),
+          },
           compose.Modifier
-            :fillMaxWidth()
+          :fillMaxWidth()
         ),
 
         compose.Spacer(
           compose.Modifier
-            :height(1)
+          :height(1)
         ),
 
         compose.Text(
           "seen "
-            .. formatAge(age)
-            .. " ago"
-            .. "   uptime "
-            .. formatUptime(
-              source.remoteUptime
-            )
-            .. (
-              source.distance
-              and (
-                "   distance "
-                .. tostring(
-                  math.floor(
-                    source.distance
-                  )
+          .. formatAge(age)
+          .. " ago"
+          .. "   uptime "
+          .. formatUptime(
+            source.remoteUptime
+          )
+          .. (
+            source.distance
+            and (
+              "   distance "
+              .. tostring(
+                math.floor(
+                  source.distance
                 )
-                .. "m"
               )
-              or ""
-            ),
-          compose.Modifier
-            :foreground(
-              colors.muted
+              .. "m"
             )
+            or ""
+          ),
+          compose.Modifier
+          :foreground(
+            colors.muted
+          )
         ),
       })
     },
 
     compose.Modifier
-      :fillMaxWidth()
-      :background(
-        colors.surface
-      ),
+    :fillMaxWidth()
+    :background(
+      colors.surface
+    ),
 
     {
       color =
-        activityColor,
+          activityColor,
     }
   )
 end
 
 
 local function genericCard(
-  source,
-  status,
-  statusColor,
-  age
+    source,
+    status,
+    statusColor,
+    age
 )
   return components.Card(
     {
       compose.Column({
         compose.Row({
-          compose.Text(
-            source.id,
-            compose.Modifier
+            compose.Text(
+              source.id,
+              compose.Modifier
               :foreground(
                 colors.primary
               )
-          ),
+            ),
 
-          compose.Spacer(
-            compose.Modifier
+            compose.Spacer(
+              compose.Modifier
               :weight(1)
-          ),
+            ),
 
-          compose.Text(
-            "● " .. status,
-            compose.Modifier
+            compose.Text(
+              "● " .. status,
+              compose.Modifier
               :foreground(
                 statusColor
               )
-          ),
-        },
+            ),
+          },
           compose.Modifier
-            :fillMaxWidth()
+          :fillMaxWidth()
         ),
 
         compose.Text(
           source.source
-            .. "   seen "
-            .. formatAge(age)
-            .. " ago"
-            .. "   uptime "
-            .. formatUptime(
-              source.remoteUptime
-            ),
+          .. "   seen "
+          .. formatAge(age)
+          .. " ago"
+          .. "   uptime "
+          .. formatUptime(
+            source.remoteUptime
+          ),
           compose.Modifier
-            :foreground(
-              colors.muted
-            )
+          :foreground(
+            colors.muted
+          )
         ),
       })
     },
 
     compose.Modifier
-      :fillMaxWidth()
-      :background(
-        colors.surface
-      ),
+    :fillMaxWidth()
+    :background(
+      colors.surface
+    ),
 
     {
       color =
-        statusColor,
+          statusColor,
     }
   )
 end
 
 compose.App(function()
   local revision =
-    compose.remember(0)
+      compose.remember(0)
 
 
-    compose.LaunchedEffect(
-      "telemetry",
-      function()
-        while true do
-          local packet =
+  compose.LaunchedEffect(
+    "telemetry",
+    function()
+      while true do
+        local packet =
             receiver:receive(
               compose.awaitEvent(
                 "modem_message"
               )
             )
 
-          if packet then
-            dashboard:update(packet)
-
-            revision.value =
-              revision.value + 1
-          end
-        end
-      end
-    )
-
-    compose.LaunchedEffect(
-      "clock",
-      function()
-        while true do
-          compose.delay(1)
+        if packet then
+          dashboard:update(packet)
 
           revision.value =
-            revision.value + 1
+              revision.value + 1
         end
       end
-    )
+    end
+  )
+
+  compose.LaunchedEffect(
+    "clock",
+    function()
+      while true do
+        compose.delay(1)
+
+        revision.value =
+            revision.value + 1
+      end
+    end
+  )
 
 
   local _ =
-    revision.value
+      revision.value
 
   local sources =
-    dashboard:all()
+      dashboard:all()
 
   local rows = {
     compose.Row({
-      compose.Text(
-        "DASHBOARD",
-        compose.Modifier
+        compose.Text(
+          "DASHBOARD",
+          compose.Modifier
           :foreground(
             colors.primary
           )
-      ),
+        ),
 
-      compose.Spacer(
-        compose.Modifier
+        compose.Spacer(
+          compose.Modifier
           :weight(1)
-      ),
+        ),
 
-      compose.Text(
-        tostring(#sources)
+        compose.Text(
+          tostring(#sources)
           .. " SOURCES",
-        compose.Modifier
+          compose.Modifier
           :foreground(
             colors.muted
           )
-      ),
-    },
+        ),
+      },
       compose.Modifier
-        :fillMaxWidth()
+      :fillMaxWidth()
     ),
 
     compose.Spacer(
       compose.Modifier
-        :height(1)
+      :height(1)
     ),
   }
 
 
   if #sources == 0 then
     rows[#rows + 1] =
-      compose.Text(
-        "Waiting for telemetry...",
-        compose.Modifier
+        compose.Text(
+          "Waiting for telemetry...",
+          compose.Modifier
           :foreground(
             colors.muted
           )
-      )
+        )
   end
 
 
@@ -533,84 +533,84 @@ compose.App(function()
     sources
   ) do
     local status,
-      statusColor =
+    statusColor =
         sourceStatus(source)
 
     local age =
-      dashboard:age(source)
+        dashboard:age(source)
 
     if source.source == "crafter" then
       rows[#rows + 1] =
-        crafterCard(
-          source,
-          status,
-          statusColor,
-          age
-        )
+          crafterCard(
+            source,
+            status,
+            statusColor,
+            age
+          )
     else
       rows[#rows + 1] =
-        genericCard(
-          source,
-          status,
-          statusColor,
-          age
-        )
+          genericCard(
+            source,
+            status,
+            statusColor,
+            age
+          )
     end
 
     rows[#rows + 1] =
-      compose.Spacer(
-        compose.Modifier
+        compose.Spacer(
+          compose.Modifier
           :height(1)
-      )
+        )
   end
 
 
   rows[#rows + 1] =
-    compose.Spacer(
-      compose.Modifier
+      compose.Spacer(
+        compose.Modifier
         :weight(1)
-    )
+      )
 
 
   rows[#rows + 1] =
-    compose.Row({
-      compose.Text(
-        "Telemetry :4242",
-        compose.Modifier
-          :foreground(
-            colors.muted
-          )
-      ),
+      compose.Row({
+          compose.Text(
+            "Telemetry :4242",
+            compose.Modifier
+            :foreground(
+              colors.muted
+            )
+          ),
 
-      compose.Spacer(
-        compose.Modifier
-          :weight(1)
-      ),
+          compose.Spacer(
+            compose.Modifier
+            :weight(1)
+          ),
 
-      compose.Text(
-        "Q to exit",
+          compose.Text(
+            "Q to exit",
+            compose.Modifier
+            :foreground(
+              colors.muted
+            )
+          ),
+        },
         compose.Modifier
-          :foreground(
-            colors.muted
-          )
-      ),
-    },
-      compose.Modifier
         :fillMaxWidth()
-    )
+      )
 
 
   return compose.Column(
     rows,
     compose.Modifier
-      :fillMaxWidth()
-      :fillMaxHeight()
-      :background(
-        colors.background
-      )
-      :foreground(
-        colors.text
-      )
-      :padding(1)
+    :fillMaxWidth()
+    :fillMaxHeight()
+    :background(
+      colors.background
+    )
+    :foreground(
+      colors.text
+    )
+    :padding(1)
   )
 end)

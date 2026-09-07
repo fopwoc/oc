@@ -6,18 +6,18 @@ local toggle = require("../lib/components/toggle")
 local dialog = require("../lib/components/dialog")
 
 components.Card =
-  card.Card
+    card.Card
 
 components.Button =
-  button.Button
+    button.Button
 
 components.Toggle =
-  toggle.Toggle
+    toggle.Toggle
 
 components.ToggleStyles =
-  toggle.styles
+    toggle.styles
 
 components.Dialog =
-  dialog.Dialog
+    dialog.Dialog
 
 return components

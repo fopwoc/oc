@@ -18,16 +18,16 @@ compose.App(function()
   local scroll = compose.remember(0)
 
   local lifecycleVisible =
-    compose.remember(true)
+      compose.remember(true)
 
   local lifecycleTicks =
-    compose.remember(0)
+      compose.remember(0)
 
   local effectKey =
-    compose.remember(1)
+      compose.remember(1)
 
   local keyTicks =
-    compose.remember(0)
+      compose.remember(0)
 
   compose.LaunchedEffect("progress", function()
     while true do
@@ -43,36 +43,36 @@ compose.App(function()
 
     compose.RecomposeScope("static", function()
       return compose.Column({
-        compose.Text("COMPOSE SHOWCASE"),
-
-        compose.Text(
-          "ASCII | Кириллица | 日本語 | 😀 🚀 ❤️"
-        ),
-
-        compose.Row({
-          compose.Text(
-            "LCR #4",
-            compose.Modifier:align(nil, "center")
-          ),
-
-          compose.Spacer(
-            compose.Modifier:weight(1)
-          ),
+          compose.Text("COMPOSE SHOWCASE"),
 
           compose.Text(
-            "RUNNING",
-            compose.Modifier:align(nil, "bottom")
+            "ASCII | Кириллица | 日本語 | 😀 🚀 ❤️"
           ),
-        },
-          compose.Modifier
+
+          compose.Row({
+              compose.Text(
+                "LCR #4",
+                compose.Modifier:align(nil, "center")
+              ),
+
+              compose.Spacer(
+                compose.Modifier:weight(1)
+              ),
+
+              compose.Text(
+                "RUNNING",
+                compose.Modifier:align(nil, "bottom")
+              ),
+            },
+            compose.Modifier
             :fillMaxWidth()
             :height(3)
             :border()
-        ),
-      },
+          ),
+        },
         compose.Modifier
-          :border()
-          :padding(1)
+        :border()
+        :padding(1)
       )
     end),
 
@@ -81,79 +81,79 @@ compose.App(function()
     --
 
     compose.Row({
-      compose.RecomposeScope("progress", function()
-        return compose.Column({
-          compose.Text("STATE / EFFECT"),
+        compose.RecomposeScope("progress", function()
+          return compose.Column({
+              compose.Text("STATE / EFFECT"),
 
-          compose.Text(
-            "Progress: "
-              .. math.floor(
-                progress.value * 100
-              )
-              .. "%"
-          ),
+              compose.Text(
+                "Progress: "
+                .. math.floor(
+                  progress.value * 100
+                )
+                .. "%"
+              ),
 
-          compose.Progress(
-            progress.value,
-            compose.Modifier:fillMaxWidth()
-          ),
-        },
-          compose.Modifier
-            :weight(1)
-            :padding(1)
-            :border()
-        )
-      end),
-
-      compose.RecomposeScope("clicks", function()
-        return compose.Column({
-          compose.Text("INPUT"),
-
-          compose.Text(
-            "[ Click me ]",
+              compose.Progress(
+                progress.value,
+                compose.Modifier:fillMaxWidth()
+              ),
+            },
             compose.Modifier
-              :clickable(function()
-                clicks.value =
-                  clicks.value + 1
-              end)
-          ),
-
-          compose.Text(
-            "Clicks: " .. clicks.value
-          ),
-        },
-          compose.Modifier
             :weight(1)
             :padding(1)
             :border()
-        )
-      end),
+          )
+        end),
 
-      compose.RecomposeScope("scroll", function()
-        return compose.Column({
-          compose.Text("SCROLL"),
+        compose.RecomposeScope("clicks", function()
+          return compose.Column({
+              compose.Text("INPUT"),
 
-          compose.Text(
-            "Value: " .. scroll.value
-          ),
+              compose.Text(
+                "[ Click me ]",
+                compose.Modifier
+                :clickable(function()
+                  clicks.value =
+                      clicks.value + 1
+                end)
+              ),
 
-          compose.Text(
-            "Scroll here"
-          ),
-        },
-          compose.Modifier
+              compose.Text(
+                "Clicks: " .. clicks.value
+              ),
+            },
+            compose.Modifier
+            :weight(1)
+            :padding(1)
+            :border()
+          )
+        end),
+
+        compose.RecomposeScope("scroll", function()
+          return compose.Column({
+              compose.Text("SCROLL"),
+
+              compose.Text(
+                "Value: " .. scroll.value
+              ),
+
+              compose.Text(
+                "Scroll here"
+              ),
+            },
+            compose.Modifier
             :weight(1)
             :padding(1)
             :border()
             :scrollable(function(direction)
               scroll.value =
-                scroll.value + direction
+                  scroll.value + direction
             end)
-        )
-      end),
-    },
+          )
+        end),
+      },
       compose.Modifier
-        :fillMaxWidth()
+      :fillMaxWidth()
     ),
 
     --
@@ -161,97 +161,97 @@ compose.App(function()
     --
 
     compose.Row({
-      compose.Column({
-        compose.Text("LIFECYCLE"),
+        compose.Column({
+            compose.Text("LIFECYCLE"),
 
-        compose.Text(
-          lifecycleVisible.value
-            and "[ Hide effect ]"
-            or "[ Show effect ]",
+            compose.Text(
+              lifecycleVisible.value
+              and "[ Hide effect ]"
+              or "[ Show effect ]",
 
-          compose.Modifier
-            :clickable(function()
-              lifecycleVisible.value =
-                not lifecycleVisible.value
-            end)
-        ),
+              compose.Modifier
+              :clickable(function()
+                lifecycleVisible.value =
+                    not lifecycleVisible.value
+              end)
+            ),
 
-        lifecycleVisible.value
-          and compose.RecomposeScope(
-            "lifecycle-test",
-            function()
-              compose.LaunchedEffect(
-                "ticker",
-                function()
-                  while true do
-                    compose.delay(1)
+            lifecycleVisible.value
+            and compose.RecomposeScope(
+              "lifecycle-test",
+              function()
+                compose.LaunchedEffect(
+                  "ticker",
+                  function()
+                    while true do
+                      compose.delay(1)
 
-                    lifecycleTicks.value =
-                      lifecycleTicks.value + 1
+                      lifecycleTicks.value =
+                          lifecycleTicks.value + 1
+                    end
                   end
-                end
-              )
+                )
 
-              return compose.Text(
-                "Ticks: "
+                return compose.Text(
+                  "Ticks: "
                   .. lifecycleTicks.value
-              )
-            end
-          )
-          or compose.Text(
-            "Stopped: "
+                )
+              end
+            )
+            or compose.Text(
+              "Stopped: "
               .. lifecycleTicks.value
-          ),
-      },
-        compose.Modifier
+            ),
+          },
+          compose.Modifier
           :weight(1)
           :padding(1)
           :border()
-      ),
+        ),
 
-      compose.RecomposeScope(
-        "effect-key-test",
-        function()
-          local key =
-            effectKey.value
+        compose.RecomposeScope(
+          "effect-key-test",
+          function()
+            local key =
+                effectKey.value
 
-          compose.LaunchedEffect(
-            key,
-            function()
-              while true do
-                compose.delay(1)
+            compose.LaunchedEffect(
+              key,
+              function()
+                while true do
+                  compose.delay(1)
 
-                keyTicks.value =
-                  keyTicks.value + 1
+                  keyTicks.value =
+                      keyTicks.value + 1
+                end
               end
-            end
-          )
+            )
 
-          return compose.Column({
-            compose.Text("EFFECT KEY"),
+            return compose.Column({
+              compose.Text("EFFECT KEY"),
 
-            compose.Text(
-              "[ Key: "
+              compose.Text(
+                "[ Key: "
                 .. key
                 .. " ]",
 
-              compose.Modifier
+                compose.Modifier
                 :clickable(function()
                   effectKey.value =
-                    effectKey.value + 1
+                      effectKey.value + 1
                 end)
-            ),
+              ),
 
-            compose.Text(
-              "Ticks: "
+              compose.Text(
+                "Ticks: "
                 .. keyTicks.value
-            ),
-          })
-        end
-      ),
-    },
+              ),
+            })
+          end
+        ),
+      },
       compose.Modifier
-        :fillMaxWidth()
+      :fillMaxWidth()
     ),
 
     --
@@ -259,55 +259,55 @@ compose.App(function()
     --
 
     compose.Row({
-      compose.Column({
-        compose.Text("left"),
+        compose.Column({
+            compose.Text("left"),
 
-        compose.Text(
-          "center",
-          compose.Modifier:align("center")
-        ),
+            compose.Text(
+              "center",
+              compose.Modifier:align("center")
+            ),
 
-        compose.Text(
-          "right",
-          compose.Modifier:align("right")
-        ),
-      },
-        compose.Modifier
+            compose.Text(
+              "right",
+              compose.Modifier:align("right")
+            ),
+          },
+          compose.Modifier
           :weight(1)
           :border()
-      ),
-
-      compose.Box({
-        compose.Text(
-          "Inside Box",
-          compose.Modifier:align(
-            "center",
-            "center"
-          )
         ),
-      },
-        compose.Modifier
+
+        compose.Box({
+            compose.Text(
+              "Inside Box",
+              compose.Modifier:align(
+                "center",
+                "center"
+              )
+            ),
+          },
+          compose.Modifier
           :weight(1)
           :height(5)
           :background(0x222222)
-      ),
-
-      compose.Column({
-        compose.Text("Spacer"),
-
-        compose.Spacer(
-          compose.Modifier:height(1)
         ),
 
-        compose.Text("After"),
-      },
-        compose.Modifier
+        compose.Column({
+            compose.Text("Spacer"),
+
+            compose.Spacer(
+              compose.Modifier:height(1)
+            ),
+
+            compose.Text("After"),
+          },
+          compose.Modifier
           :weight(1)
           :border()
-      ),
-    },
+        ),
+      },
       compose.Modifier
-        :fillMaxWidth()
+      :fillMaxWidth()
     ),
 
     --
@@ -318,7 +318,7 @@ compose.App(function()
       "verticalScroll",
       function()
         local scrollState =
-          compose.rememberScrollState()
+            compose.rememberScrollState()
 
         local children = {
           compose.Text(
@@ -330,36 +330,36 @@ compose.App(function()
           local index = i
 
           children[#children + 1] =
-            compose.RecomposeScope(
-              "scrollItem" .. index,
-              function()
-                local clicks =
-                  compose.remember(0)
+              compose.RecomposeScope(
+                "scrollItem" .. index,
+                function()
+                  local clicks =
+                      compose.remember(0)
 
-                return compose.Text(
-                  "Item "
+                  return compose.Text(
+                    "Item "
                     .. index
                     .. " clicks: "
                     .. clicks.value,
 
-                  compose.Modifier
+                    compose.Modifier
                     :fillMaxWidth()
                     :clickable(function()
                       clicks.value =
-                        clicks.value + 1
+                          clicks.value + 1
                     end)
-                )
-              end
-            )
+                  )
+                end
+              )
         end
 
         return compose.Column(
           children,
           compose.Modifier
-            :fillMaxWidth()
-            :height(8)
-            :verticalScroll(scrollState)
-            :border()
+          :fillMaxWidth()
+          :height(8)
+          :verticalScroll(scrollState)
+          :border()
         )
       end
     ),

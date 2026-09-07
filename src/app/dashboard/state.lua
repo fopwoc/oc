@@ -1,5 +1,5 @@
 local computer =
-  require("computer")
+    require("computer")
 
 local state = {}
 
@@ -17,75 +17,73 @@ function state.create()
     )
 
     local key =
-      packet.source
+        packet.source
         .. ":"
         .. packet.id
 
     local source =
-      self.sources[key]
+        self.sources[key]
 
     if not source then
       source = {
         source =
-          packet.source,
+            packet.source,
 
         id =
-          packet.id,
+            packet.id,
 
         address =
-          packet.address,
+            packet.address,
 
         distance =
-          packet.distance,
+            packet.distance,
 
         firstSeen =
-          computer.uptime(),
+            computer.uptime(),
 
         lastSeen =
-          0,
+            0,
 
         remoteUptime =
-          0,
+            0,
 
         data = {},
       }
 
       self.sources[key] =
-        source
+          source
     end
 
 
     source.address =
-      packet.address
+        packet.address
 
     source.distance =
-      packet.distance
+        packet.distance
 
     source.lastSeen =
-      computer.uptime()
+        computer.uptime()
 
     source.remoteUptime =
-      packet.uptime
+        packet.uptime
 
     source.data =
-      packet.data
+        packet.data
 
 
     return source
   end
 
-
   function instance:get(
-    source,
-    id
+      source,
+      id
   )
     return self.sources[
-      source
-        .. ":"
-        .. id
+    source
+    .. ":"
+    .. id
     ]
   end
-
 
   function instance:all()
     local result = {}
@@ -94,7 +92,7 @@ function state.create()
       self.sources
     ) do
       result[#result + 1] =
-        source
+          source
     end
 
     table.sort(
@@ -111,15 +109,12 @@ function state.create()
     return result
   end
 
-
   function instance:age(source)
     return computer.uptime()
-      - source.lastSeen
+        - source.lastSeen
   end
-
 
   return instance
 end
-
 
 return state

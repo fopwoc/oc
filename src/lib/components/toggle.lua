@@ -25,36 +25,36 @@ toggle.styles = {
 }
 
 function toggle.Toggle(
-  label,
-  checked,
-  onChange,
-  style,
-  modifier
+    label,
+    checked,
+    onChange,
+    style,
+    modifier
 )
   style =
-    style
-    or toggle.styles.checkbox
+      style
+      or toggle.styles.checkbox
 
   modifier =
-    modifier
-    or compose.Modifier
+      modifier
+      or compose.Modifier
 
   local indicator =
-    checked
+      checked
       and style.on
       or style.off
 
   if onChange then
     modifier =
-      modifier:clickable(function()
-        onChange(not checked)
-      end)
+        modifier:clickable(function()
+          onChange(not checked)
+        end)
   end
 
   return compose.Text(
     indicator
-      .. " "
-      .. tostring(label),
+    .. " "
+    .. tostring(label),
 
     modifier
   )

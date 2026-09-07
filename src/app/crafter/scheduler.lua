@@ -1,26 +1,26 @@
 local component =
-  require("component")
+    require("component")
 
 local computer =
-  require("computer")
+    require("computer")
 
 local scheduler = {}
 
 local me =
-  component.me_interface
+    component.me_interface
 
 local POLL_INTERVAL = 0.25
 
 local function loadCraftable(label)
   local found =
-    me.getCraftables({
-      label = label,
-    })
+      me.getCraftables({
+        label = label,
+      })
 
   if not found or #found == 0 then
     error(
       "Craftable not found: "
-        .. label
+      .. label
     )
   end
 
@@ -28,9 +28,9 @@ local function loadCraftable(label)
 end
 
 local function resolve(
-  value,
-  default,
-  fallback
+    value,
+    default,
+    fallback
 )
   if value ~= nil then
     return value
@@ -44,8 +44,8 @@ local function resolve(
 end
 
 local function createTarget(
-  config,
-  defaults
+    config,
+    defaults
 )
   assert(
     type(config) == "table",
@@ -53,37 +53,37 @@ local function createTarget(
   )
 
   local label =
-    assert(
-      config.label,
-      "Target label is required"
-    )
+      assert(
+        config.label,
+        "Target label is required"
+      )
 
   local amount =
-    resolve(
-      config.amount,
-      defaults.amount,
-      1
-    )
+      resolve(
+        config.amount,
+        defaults.amount,
+        1
+      )
 
   local cooldown =
-    resolve(
-      config.cooldown,
-      defaults.cooldown,
-      0
-    )
+      resolve(
+        config.cooldown,
+        defaults.cooldown,
+        0
+      )
 
   assert(
     type(amount) == "number"
-      and amount > 0,
+    and amount > 0,
     "Target amount must be greater than 0: "
-      .. label
+    .. label
   )
 
   assert(
     type(cooldown) == "number"
-      and cooldown >= 0,
+    and cooldown >= 0,
     "Target cooldown must be >= 0: "
-      .. label
+    .. label
   )
 
   return {
@@ -93,7 +93,7 @@ local function createTarget(
     cooldown = cooldown,
 
     craftable =
-      loadCraftable(label),
+        loadCraftable(label),
 
     job = nil,
 
@@ -108,13 +108,13 @@ local function createTarget(
 end
 
 local function updateTarget(
-  target,
-  now
+    target,
+    now
 )
   if not target.job then
     if
-      target.status == "cooldown"
-      and now >= target.nextRequestAt
+        target.status == "cooldown"
+        and now >= target.nextRequestAt
     then
       target.status = "waiting"
     end
@@ -125,11 +125,11 @@ local function updateTarget(
   if target.job.isCanceled() then
     target.job = nil
     target.canceled =
-      target.canceled + 1
+        target.canceled + 1
 
     target.status = "cooldown"
     target.nextRequestAt =
-      now + target.cooldown
+        now + target.cooldown
 
     return
   end
@@ -137,17 +137,17 @@ local function updateTarget(
   if target.job.isDone() then
     target.job = nil
     target.completed =
-      target.completed + 1
+        target.completed + 1
 
     target.status = "cooldown"
     target.nextRequestAt =
-      now + target.cooldown
+        now + target.cooldown
   end
 end
 
 local function requestTarget(
-  target,
-  now
+    target,
+    now
 )
   if target.job then
     return false
@@ -158,17 +158,17 @@ local function requestTarget(
   end
 
   target.requests =
-    target.requests + 1
+      target.requests + 1
 
   local job =
-    target.craftable.request(
-      target.amount
-    )
+      target.craftable.request(
+        target.amount
+      )
 
   if not job then
     target.status = "cooldown"
     target.nextRequestAt =
-      now + target.cooldown
+        now + target.cooldown
 
     return false
   end
@@ -186,12 +186,12 @@ function scheduler.create(config)
   )
 
   local defaults =
-    config.defaults
-    or {}
+      config.defaults
+      or {}
 
   local targetConfigs =
-    config.targets
-    or {}
+      config.targets
+      or {}
 
   assert(
     #targetConfigs > 0,
@@ -212,21 +212,21 @@ function scheduler.create(config)
     targetConfigs
   ) do
     instance.targets[
-      #instance.targets + 1
+    #instance.targets + 1
     ] =
-      createTarget(
-        targetConfig,
-        defaults
-      )
+        createTarget(
+          targetConfig,
+          defaults
+        )
   end
 
   function instance:stop()
     self.running = false
   end
 
-function instance:step(allowScheduling)
+  function instance:step(allowScheduling)
     local now =
-      computer.uptime()
+        computer.uptime()
 
     --
     -- Phase 1:
@@ -250,28 +250,28 @@ function instance:step(allowScheduling)
     -- fair round-robin scheduling.
     --
     local count =
-      #self.targets
+        #self.targets
 
     local start =
-      self.cursor
+        self.cursor
 
     for offset = 0, count - 1 do
       local index =
-        ((start + offset - 1) % count)
-        + 1
+          ((start + offset - 1) % count)
+          + 1
 
       local target =
-        self.targets[index]
+          self.targets[index]
 
       if
-        not target.job
-        and now >= target.nextRequestAt
+          not target.job
+          and now >= target.nextRequestAt
       then
         local accepted =
-          requestTarget(
-            target,
-            now
-          )
+            requestTarget(
+              target,
+              now
+            )
 
         if accepted then
           --
@@ -279,8 +279,8 @@ function instance:step(allowScheduling)
           -- after the recipe that just won.
           --
           self.cursor =
-            (index % count)
-            + 1
+              (index % count)
+              + 1
         end
       end
     end

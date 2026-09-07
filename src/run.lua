@@ -6,7 +6,7 @@ local ROOT = shell.getWorkingDirectory()
 local INSTALLED_FILE = filesystem.concat(ROOT, ".installed.lua")
 local MANIFEST_FILE = filesystem.concat(ROOT, "manifest.lua")
 
-local args = {...}
+local args = { ... }
 local requested = args[1]
 
 local function loadInstalled()

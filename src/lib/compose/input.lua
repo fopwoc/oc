@@ -43,13 +43,13 @@ local function push(event)
 end
 
 function input.pushRaw(
-  name,
-  address,
-  a,
-  b,
-  c,
-  d,
-  e
+    name,
+    address,
+    a,
+    b,
+    c,
+    d,
+    e
 )
   if name == "key_down" then
     push({
@@ -59,7 +59,6 @@ function input.pushRaw(
       code = b,
       player = c,
     })
-
   elseif name == "key_up" then
     push({
       type = "keyUp",
@@ -68,7 +67,6 @@ function input.pushRaw(
       code = b,
       player = c,
     })
-
   elseif name == "touch" then
     push({
       type = "touch",
@@ -78,7 +76,6 @@ function input.pushRaw(
       button = c,
       player = d,
     })
-
   elseif name == "scroll" then
     push({
       type = "scroll",
@@ -88,7 +85,6 @@ function input.pushRaw(
       direction = c,
       player = d,
     })
-
   elseif name == "drag" then
     push({
       type = "drag",
@@ -98,7 +94,6 @@ function input.pushRaw(
       button = c,
       player = d,
     })
-
   elseif name == "drop" then
     push({
       type = "drop",

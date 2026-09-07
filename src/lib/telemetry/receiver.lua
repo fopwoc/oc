@@ -1,13 +1,13 @@
 local component =
-  require("component")
+    require("component")
 
 local protocol =
-  require("../lib/telemetry/protocol")
+    require("../lib/telemetry/protocol")
 
 local receiver = {}
 
 local modem =
-  component.modem
+    component.modem
 
 
 function receiver.create(options)
@@ -15,7 +15,7 @@ function receiver.create(options)
 
   local instance = {
     port =
-      options.port
+        options.port
         or protocol.DEFAULT_PORT,
   }
 
@@ -26,21 +26,19 @@ function receiver.create(options)
     )
   end
 
-
   function instance:close()
     return modem.close(
       self.port
     )
   end
 
-
   function instance:receive(
-    eventName,
-    localAddress,
-    from,
-    port,
-    distance,
-    payload
+      eventName,
+      localAddress,
+      from,
+      port,
+      distance,
+      payload
   )
     if eventName ~= "modem_message" then
       return nil
@@ -51,9 +49,9 @@ function receiver.create(options)
     end
 
     local packet =
-      protocol.decode(
-        payload
-      )
+        protocol.decode(
+          payload
+        )
 
     if not packet then
       return nil
@@ -66,19 +64,17 @@ function receiver.create(options)
       data = packet.data,
 
       localAddress =
-        localAddress,
+          localAddress,
 
       address =
-        from,
+          from,
 
       distance =
-        distance,
+          distance,
     }
   end
 
-
   return instance
 end
-
 
 return receiver

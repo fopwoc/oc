@@ -40,12 +40,12 @@ function framebuffer.setBackground(frame, color)
 end
 
 local function setCell(
-  frame,
-  x,
-  y,
-  char,
-  foreground,
-  background
+    frame,
+    x,
+    y,
+    char,
+    foreground,
+    background
 )
   local i = index(
     frame.width,
@@ -59,14 +59,14 @@ local function setCell(
 end
 
 local function writeChar(
-  frame,
-  x,
-  y,
-  char,
-  preserveBackground
+    frame,
+    x,
+    y,
+    char,
+    preserveBackground
 )
   local width =
-    unicode.charWidth(char)
+      unicode.charWidth(char)
 
   if width < 1 then
     return 0
@@ -77,31 +77,31 @@ local function writeChar(
   end
 
   if
-    x > frame.width
-    or x + width - 1 > frame.width
+      x > frame.width
+      or x + width - 1 > frame.width
   then
     return width
   end
 
   local foreground =
-    frame.foregroundColor
+      frame.foregroundColor
 
   local background
 
   if preserveBackground then
     local i =
-      index(
-        frame.width,
-        x,
-        y
-      )
+        index(
+          frame.width,
+          x,
+          y
+        )
 
     background =
-      frame.background[i]
+        frame.background[i]
         or DEFAULT_BACKGROUND
   else
     background =
-      frame.backgroundColor
+        frame.backgroundColor
   end
 
   setCell(
@@ -129,27 +129,27 @@ end
 
 function framebuffer.set(frame, x, y, char)
   if
-    x < 1
-    or x > frame.width
-    or y < 1
-    or y > frame.height
+      x < 1
+      or x > frame.width
+      or y < 1
+      or y > frame.height
   then
     return
   end
 
   if
-    not char
-    or char == ""
+      not char
+      or char == ""
   then
     return
   end
 
   char =
-    unicode.sub(
-      tostring(char),
-      1,
-      1
-    )
+      unicode.sub(
+        tostring(char),
+        1,
+        1
+      )
 
   writeChar(
     frame,
@@ -161,37 +161,37 @@ function framebuffer.set(frame, x, y, char)
 end
 
 local function write(
-  frame,
-  x,
-  y,
-  text,
-  preserveBackground
+    frame,
+    x,
+    y,
+    text,
+    preserveBackground
 )
   if
-    y < 1
-    or y > frame.height
+      y < 1
+      or y > frame.height
   then
     return
   end
 
   text =
-    tostring(text)
+      tostring(text)
 
   local length =
-    unicode.len(text)
+      unicode.len(text)
 
   local px = x
 
   for i = 1, length do
     local char =
-      unicode.sub(
-        text,
-        i,
-        i
-      )
+        unicode.sub(
+          text,
+          i,
+          i
+        )
 
     local width =
-      unicode.charWidth(char)
+        unicode.charWidth(char)
 
     if px > frame.width then
       break
@@ -208,15 +208,15 @@ local function write(
     end
 
     px =
-      px + width
+        px + width
   end
 end
 
 function framebuffer.write(
-  frame,
-  x,
-  y,
-  text
+    frame,
+    x,
+    y,
+    text
 )
   write(
     frame,
@@ -228,10 +228,10 @@ function framebuffer.write(
 end
 
 function framebuffer.writeForeground(
-  frame,
-  x,
-  y,
-  text
+    frame,
+    x,
+    y,
+    text
 )
   write(
     frame,
@@ -245,73 +245,73 @@ end
 local function getCell(frame, i)
   if not frame then
     return
-      " ",
-      DEFAULT_FOREGROUND,
-      DEFAULT_BACKGROUND
+        " ",
+        DEFAULT_FOREGROUND,
+        DEFAULT_BACKGROUND
   end
 
   local char =
-    frame.chars[i]
+      frame.chars[i]
 
   if char == nil then
     char = " "
   end
 
   return
-    char,
-    frame.foreground[i]
+      char,
+      frame.foreground[i]
       or DEFAULT_FOREGROUND,
-    frame.background[i]
+      frame.background[i]
       or DEFAULT_BACKGROUND
 end
 
 local function cellsEqual(
-  current,
-  previous,
-  i
+    current,
+    previous,
+    i
 )
   local char,
-    foreground,
-    background =
-    getCell(current, i)
+  foreground,
+  background =
+      getCell(current, i)
 
   local previousChar,
-    previousForeground,
-    previousBackground =
-    getCell(previous, i)
+  previousForeground,
+  previousBackground =
+      getCell(previous, i)
 
   return
-    char == previousChar
-    and foreground == previousForeground
-    and background == previousBackground
+      char == previousChar
+      and foreground == previousForeground
+      and background == previousBackground
 end
 
 local function isContinuation(
-  frame,
-  width,
-  x,
-  y
+    frame,
+    width,
+    x,
+    y
 )
   if not frame then
     return false
   end
 
   return
-    frame.chars[
+      frame.chars[
       index(width, x, y)
-    ] == CONTINUATION
+      ] == CONTINUATION
 end
 
 function framebuffer.present(
-  gpu,
-  current,
-  previous
+    gpu,
+    current,
+    previous
 )
   local width =
-    current.width
+      current.width
 
   local height =
-    current.height
+      current.height
 
   local activeForeground = nil
   local activeBackground = nil
@@ -321,37 +321,37 @@ function framebuffer.present(
 
     for x = 1, width do
       local i =
-        index(
-          width,
-          x,
-          y
-        )
+          index(
+            width,
+            x,
+            y
+          )
 
       if not cellsEqual(
-        current,
-        previous,
-        i
-      ) then
+            current,
+            previous,
+            i
+          ) then
         changed[x] = true
 
         -- Если изменилась continuation-cell,
         -- перерисовываем и начало wide-глифа.
         if
-          x > 1
-          and (
-            isContinuation(
-              current,
-              width,
-              x,
-              y
+            x > 1
+            and (
+              isContinuation(
+                current,
+                width,
+                x,
+                y
+              )
+              or isContinuation(
+                previous,
+                width,
+                x,
+                y
+              )
             )
-            or isContinuation(
-              previous,
-              width,
-              x,
-              y
-            )
-          )
         then
           changed[x - 1] = true
         end
@@ -360,21 +360,21 @@ function framebuffer.present(
         -- его вторая клетка тоже логически
         -- относится к этому изменению.
         if
-          x < width
-          and (
-            isContinuation(
-              current,
-              width,
-              x + 1,
-              y
+            x < width
+            and (
+              isContinuation(
+                current,
+                width,
+                x + 1,
+                y
+              )
+              or isContinuation(
+                previous,
+                width,
+                x + 1,
+                y
+              )
             )
-            or isContinuation(
-              previous,
-              width,
-              x + 1,
-              y
-            )
-          )
         then
           changed[x + 1] = true
         end
@@ -388,16 +388,16 @@ function framebuffer.present(
         x = x + 1
       else
         local char,
-          foreground,
-          background =
-          getCell(
-            current,
-            index(
-              width,
-              x,
-              y
+        foreground,
+        background =
+            getCell(
+              current,
+              index(
+                width,
+                x,
+                y
+              )
             )
-          )
 
         -- changed span никогда не должен
         -- реально стартовать внутри wide-char.
@@ -409,19 +409,19 @@ function framebuffer.present(
 
           while x <= width do
             local i =
-              index(
-                width,
-                x,
-                y
-              )
+                index(
+                  width,
+                  x,
+                  y
+                )
 
             local runChar,
-              runForeground,
-              runBackground =
-              getCell(
-                current,
-                i
-              )
+            runForeground,
+            runBackground =
+                getCell(
+                  current,
+                  i
+                )
 
             if not changed[x] then
               break
@@ -430,25 +430,25 @@ function framebuffer.present(
             if runChar == CONTINUATION then
               x = x + 1
             elseif
-              runForeground ~= foreground
-              or runBackground ~= background
+                runForeground ~= foreground
+                or runBackground ~= background
             then
               break
             else
               run[#run + 1] =
-                runChar
+                  runChar
 
               x =
-                x
-                + unicode.charWidth(
-                  runChar
-                )
+                  x
+                  + unicode.charWidth(
+                    runChar
+                  )
             end
           end
 
           if #run > 0 then
             if
-              activeForeground
+                activeForeground
                 ~= foreground
             then
               gpu.setForeground(
@@ -456,11 +456,11 @@ function framebuffer.present(
               )
 
               activeForeground =
-                foreground
+                  foreground
             end
 
             if
-              activeBackground
+                activeBackground
                 ~= background
             then
               gpu.setBackground(
@@ -468,7 +468,7 @@ function framebuffer.present(
               )
 
               activeBackground =
-                background
+                  background
             end
 
             gpu.set(

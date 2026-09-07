@@ -35,16 +35,13 @@ local function applyLayoutModifiers(node, constraints)
       if element.type == "width" then
         result.minWidth = element.value
         result.maxWidth = element.value
-
       elseif element.type == "height" then
         result.minHeight = element.value
         result.maxHeight = element.value
-
       elseif element.type == "fillMaxWidth" then
         if result.maxWidth ~= math.huge then
           result.minWidth = result.maxWidth
         end
-
       elseif element.type == "fillMaxHeight" then
         if result.maxHeight ~= math.huge then
           result.minHeight = result.maxHeight
@@ -57,28 +54,28 @@ local function applyLayoutModifiers(node, constraints)
 end
 
 local function getPadding(node)
-    local left = 0
-    local top = 0
-    local right = 0
-    local bottom = 0
+  local left = 0
+  local top = 0
+  local right = 0
+  local bottom = 0
 
-    if not node.modifier then
-        return left, top, right, bottom
-    end
-
-    for _, element in ipairs(node.modifier.elements or {}) do
-        if
-            element.phase == "layout"
-            and element.type == "padding"
-        then
-            left = left + element.left
-            top = top + element.top
-            right = right + element.right
-            bottom = bottom + element.bottom
-        end
-    end
-
+  if not node.modifier then
     return left, top, right, bottom
+  end
+
+  for _, element in ipairs(node.modifier.elements or {}) do
+    if
+        element.phase == "layout"
+        and element.type == "padding"
+    then
+      left = left + element.left
+      top = top + element.top
+      right = right + element.right
+      bottom = bottom + element.bottom
+    end
+  end
+
+  return left, top, right, bottom
 end
 
 local function getBorderInsets(node)
@@ -90,8 +87,8 @@ local function getBorderInsets(node)
     node.modifier.elements or {}
   ) do
     if
-      element.phase == "border"
-      and element.type == "border"
+        element.phase == "border"
+        and element.type == "border"
     then
       return 1, 1, 1, 1
     end
@@ -101,48 +98,48 @@ local function getBorderInsets(node)
 end
 
 local function getVerticalScroll(node)
-    if not node.modifier then
-        return nil
-    end
-
-    for _, element in ipairs(
-        node.modifier.elements or {}
-    ) do
-        if
-            element.phase == "input"
-            and element.type == "verticalScroll"
-        then
-            return element
-        end
-    end
-
+  if not node.modifier then
     return nil
+  end
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if
+        element.phase == "input"
+        and element.type == "verticalScroll"
+    then
+      return element
+    end
+  end
+
+  return nil
 end
 
 local function getAlignment(node)
-    if not node.modifier then
-        return nil, nil
+  if not node.modifier then
+    return nil, nil
+  end
+
+  local horizontal = nil
+  local vertical = nil
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if
+        element.phase == "layout"
+        and element.type == "align"
+    then
+      horizontal =
+          element.horizontal
+
+      vertical =
+          element.vertical
     end
+  end
 
-    local horizontal = nil
-    local vertical = nil
-
-    for _, element in ipairs(
-        node.modifier.elements or {}
-    ) do
-        if
-            element.phase == "layout"
-            and element.type == "align"
-        then
-            horizontal =
-                element.horizontal
-
-            vertical =
-                element.vertical
-        end
-    end
-
-    return horizontal, vertical
+  return horizontal, vertical
 end
 
 local function getWeight(node)
@@ -154,8 +151,8 @@ local function getWeight(node)
     node.modifier.elements or {}
   ) do
     if
-      element.phase == "layout"
-      and element.type == "weight"
+        element.phase == "layout"
+        and element.type == "weight"
     then
       return element.value
     end
@@ -168,27 +165,27 @@ local measureNode
 
 local function measureText(node, constraints)
   local text =
-    tostring(node.props.text or "")
+      tostring(node.props.text or "")
 
   local width =
-    unicode.wlen(text)
+      unicode.wlen(text)
 
   return
-    math.max(
-      constraints.minWidth,
-      math.min(
-        constraints.maxWidth,
-        width
-      )
-    ),
-    math.max(
-      constraints.minHeight,
-      math.min(
-        constraints.maxHeight,
-        1
-      )
-    ),
-    {}
+      math.max(
+        constraints.minWidth,
+        math.min(
+          constraints.maxWidth,
+          width
+        )
+      ),
+      math.max(
+        constraints.minHeight,
+        math.min(
+          constraints.maxHeight,
+          1
+        )
+      ),
+      {}
 end
 
 local function measureProgress(node, constraints)
@@ -216,11 +213,11 @@ local function measureProgress(node, constraints)
 end
 
 local function measureColumn(
-  node,
-  constraints
+    node,
+    constraints
 )
   local source =
-    node.props.children or {}
+      node.props.children or {}
 
   local children = {}
 
@@ -229,22 +226,22 @@ local function measureColumn(
   local width = 0
 
   local verticalScroll =
-    getVerticalScroll(node)
+      getVerticalScroll(node)
 
   -- В scrollable Column weight не имеет конечного
   -- viewport-space для распределения.
   local useWeight =
-    not verticalScroll
+      not verticalScroll
 
   for index, child in ipairs(source) do
     local weight =
-      useWeight
-      and getWeight(child)
-      or nil
+        useWeight
+        and getWeight(child)
+        or nil
 
     if weight then
       totalWeight =
-        totalWeight + weight
+          totalWeight + weight
 
       children[index] = {
         node = child,
@@ -255,48 +252,46 @@ local function measureColumn(
 
       if verticalScroll then
         childMaxHeight =
-          math.huge
-
+            math.huge
       elseif constraints.maxHeight
-        == math.huge
+          == math.huge
       then
         childMaxHeight =
-          math.huge
-
+            math.huge
       else
         childMaxHeight =
-          math.max(
-            0,
-            constraints.maxHeight
+            math.max(
+              0,
+              constraints.maxHeight
               - fixedHeight
-          )
+            )
       end
 
       local measured =
-        measureNode(
-          child,
-          {
-            minWidth = 0,
-            maxWidth =
-              constraints.maxWidth,
+          measureNode(
+            child,
+            {
+              minWidth = 0,
+              maxWidth =
+                  constraints.maxWidth,
 
-            minHeight = 0,
-            maxHeight =
-              childMaxHeight,
-          }
-        )
+              minHeight = 0,
+              maxHeight =
+                  childMaxHeight,
+            }
+          )
 
       children[index] =
-        measured
+          measured
 
       fixedHeight =
-        fixedHeight + measured.height
+          fixedHeight + measured.height
 
       width =
-        math.max(
-          width,
-          measured.width
-        )
+          math.max(
+            width,
+            measured.width
+          )
     end
   end
 
@@ -307,94 +302,94 @@ local function measureColumn(
 
     if constraints.maxHeight == math.huge then
       availableHeight =
-        constraints.minHeight
+          constraints.minHeight
     else
       availableHeight =
-        constraints.maxHeight
+          constraints.maxHeight
     end
 
     remainingHeight =
-      math.max(
-        0,
-        availableHeight - fixedHeight
-      )
+        math.max(
+          0,
+          availableHeight - fixedHeight
+        )
 
     local remainingWeight =
-      totalWeight
+        totalWeight
 
     local remainingWeightedHeight =
-      remainingHeight
+        remainingHeight
 
     for index, child in ipairs(source) do
       local weight =
-        getWeight(child)
+          getWeight(child)
 
       if weight then
         local allocated = 0
 
         if remainingWeight > 0 then
           allocated =
-            math.floor(
-              remainingWeightedHeight
+              math.floor(
+                remainingWeightedHeight
                 * weight
                 / remainingWeight
-            )
+              )
         end
 
         local measured =
-          measureNode(
-            child,
-            {
-              minWidth = 0,
-              maxWidth =
-                constraints.maxWidth,
+            measureNode(
+              child,
+              {
+                minWidth = 0,
+                maxWidth =
+                    constraints.maxWidth,
 
-              minHeight = allocated,
-              maxHeight = allocated,
-            }
-          )
+                minHeight = allocated,
+                maxHeight = allocated,
+              }
+            )
 
         children[index] =
-          measured
+            measured
 
         width =
-          math.max(
-            width,
-            measured.width
-          )
+            math.max(
+              width,
+              measured.width
+            )
 
         remainingWeightedHeight =
-          remainingWeightedHeight
-          - allocated
+            remainingWeightedHeight
+            - allocated
 
         remainingWeight =
-          remainingWeight
-          - weight
+            remainingWeight
+            - weight
       end
     end
   end
 
   width =
-    clamp(
-      width,
-      constraints.minWidth,
-      constraints.maxWidth
-    )
+      clamp(
+        width,
+        constraints.minWidth,
+        constraints.maxWidth
+      )
 
   local contentHeight =
-    fixedHeight + remainingHeight
+      fixedHeight + remainingHeight
 
   if totalWeight == 0 then
     contentHeight =
-      fixedHeight
+        fixedHeight
   end
 
   local height =
-    clamp(
-      contentHeight,
-      constraints.minHeight,
-      constraints.maxHeight
-    )
+      clamp(
+        contentHeight,
+        constraints.minHeight,
+        constraints.maxHeight
+      )
 
   local y = 0
 
@@ -403,59 +398,58 @@ local function measureColumn(
     child.y = y
 
     y =
-      y + child.height
+        y + child.height
   end
 
   -- Column владеет горизонтальной осью.
   for _, child in ipairs(children) do
     local horizontal =
-      getAlignment(child.node)
+        getAlignment(child.node)
 
     if horizontal == "center" then
       child.x =
-        math.floor(
-          (width - child.width) / 2
-        )
-
+          math.floor(
+            (width - child.width) / 2
+          )
     elseif horizontal == "right" then
       child.x =
-        width - child.width
+          width - child.width
     end
   end
 
   if verticalScroll then
     local state =
-      verticalScroll.state
+        verticalScroll.state
 
     local maxValue =
-      math.max(
-        0,
-        contentHeight - height
-      )
+        math.max(
+          0,
+          contentHeight - height
+        )
 
     state:setMaxValue(maxValue)
 
     local offset =
-      state:getValue()
+        state:getValue()
 
     for _, child in ipairs(children) do
       child.y =
-        child.y - offset
+          child.y - offset
     end
   end
 
   return
-    width,
-    height,
-    children
+      width,
+      height,
+      children
 end
 
 local function measureRow(
-  node,
-  constraints
+    node,
+    constraints
 )
   local source =
-    node.props.children or {}
+      node.props.children or {}
 
   local children = {}
   local fixedWidth = 0
@@ -466,11 +460,11 @@ local function measureRow(
   -- Weighted пока только считаем.
   for index, child in ipairs(source) do
     local weight =
-      getWeight(child)
+        getWeight(child)
 
     if weight then
       totalWeight =
-        totalWeight + weight
+          totalWeight + weight
 
       children[index] = {
         node = child,
@@ -481,41 +475,41 @@ local function measureRow(
 
       if constraints.maxWidth == math.huge then
         remainingWidth =
-          math.huge
+            math.huge
       else
         remainingWidth =
-          math.max(
-            0,
-            constraints.maxWidth
+            math.max(
+              0,
+              constraints.maxWidth
               - fixedWidth
-          )
+            )
       end
 
       local measured =
-        measureNode(
-          child,
-          {
-            minWidth = 0,
-            maxWidth =
-              remainingWidth,
+          measureNode(
+            child,
+            {
+              minWidth = 0,
+              maxWidth =
+                  remainingWidth,
 
-            minHeight = 0,
-            maxHeight =
-              constraints.maxHeight,
-          }
-        )
+              minHeight = 0,
+              maxHeight =
+                  constraints.maxHeight,
+            }
+          )
 
       children[index] =
-        measured
+          measured
 
       fixedWidth =
-        fixedWidth + measured.width
+          fixedWidth + measured.width
 
       height =
-        math.max(
-          height,
-          measured.height
-        )
+          math.max(
+            height,
+            measured.height
+          )
     end
   end
 
@@ -523,94 +517,94 @@ local function measureRow(
 
   if constraints.maxWidth == math.huge then
     availableWidth =
-      constraints.minWidth
+        constraints.minWidth
   else
     availableWidth =
-      constraints.maxWidth
+        constraints.maxWidth
   end
 
   local remainingWidth =
-    math.max(
-      0,
-      availableWidth - fixedWidth
-    )
+      math.max(
+        0,
+        availableWidth - fixedWidth
+      )
 
   -- Теперь weighted дети получают свою долю.
   local remainingWeight =
-    totalWeight
+      totalWeight
 
   local remainingWeightedWidth =
-    remainingWidth
+      remainingWidth
 
   for index, child in ipairs(source) do
     local weight =
-      getWeight(child)
+        getWeight(child)
 
     if weight then
       local allocated = 0
 
       if remainingWeight > 0 then
         allocated =
-          math.floor(
-            remainingWeightedWidth
+            math.floor(
+              remainingWeightedWidth
               * weight
               / remainingWeight
-          )
+            )
       end
 
       local measured =
-        measureNode(
-          child,
-          {
-            minWidth = allocated,
-            maxWidth = allocated,
+          measureNode(
+            child,
+            {
+              minWidth = allocated,
+              maxWidth = allocated,
 
-            minHeight = 0,
-            maxHeight =
-              constraints.maxHeight,
-          }
-        )
+              minHeight = 0,
+              maxHeight =
+                  constraints.maxHeight,
+            }
+          )
 
       children[index] =
-        measured
+          measured
 
       height =
-        math.max(
-          height,
-          measured.height
-        )
+          math.max(
+            height,
+            measured.height
+          )
 
       remainingWeightedWidth =
-        remainingWeightedWidth
-        - allocated
+          remainingWeightedWidth
+          - allocated
 
       remainingWeight =
-        remainingWeight
-        - weight
+          remainingWeight
+          - weight
     end
   end
 
   local width =
-    fixedWidth + remainingWidth
+      fixedWidth + remainingWidth
 
   if totalWeight == 0 then
     width =
-      fixedWidth
+        fixedWidth
   end
 
   width =
-    clamp(
-      width,
-      constraints.minWidth,
-      constraints.maxWidth
-    )
+      clamp(
+        width,
+        constraints.minWidth,
+        constraints.maxWidth
+      )
 
   height =
-    clamp(
-      height,
-      constraints.minHeight,
-      constraints.maxHeight
-    )
+      clamp(
+        height,
+        constraints.minHeight,
+        constraints.maxHeight
+      )
 
   local x = 0
 
@@ -619,35 +613,34 @@ local function measureRow(
     child.y = 0
 
     x =
-      x + child.width
+        x + child.width
   end
 
   -- Row владеет вертикальной осью.
   for _, child in ipairs(children) do
     local _, vertical =
-      getAlignment(child.node)
+        getAlignment(child.node)
 
     if vertical == "center" then
       child.y =
-        math.floor(
-          (height - child.height) / 2
-        )
-
+          math.floor(
+            (height - child.height) / 2
+          )
     elseif vertical == "bottom" then
       child.y =
-        height - child.height
+          height - child.height
     end
   end
 
   return
-    width,
-    height,
-    children
+      width,
+      height,
+      children
 end
 
 local function measureBox(
-  node,
-  constraints
+    node,
+    constraints
 )
   local children = {}
 
@@ -658,90 +651,88 @@ local function measureBox(
     node.props.children or {}
   ) do
     local measured =
-      measureNode(
-        child,
-        {
-          minWidth = 0,
-          maxWidth =
-            constraints.maxWidth,
+        measureNode(
+          child,
+          {
+            minWidth = 0,
+            maxWidth =
+                constraints.maxWidth,
 
-          minHeight = 0,
-          maxHeight =
-            constraints.maxHeight,
-        }
-      )
+            minHeight = 0,
+            maxHeight =
+                constraints.maxHeight,
+          }
+        )
 
     measured.x = 0
     measured.y = 0
 
     children[#children + 1] =
-      measured
+        measured
 
     width =
-      math.max(
-        width,
-        measured.width
-      )
+        math.max(
+          width,
+          measured.width
+        )
 
     height =
-      math.max(
-        height,
-        measured.height
-      )
+        math.max(
+          height,
+          measured.height
+        )
   end
 
   width =
-    clamp(
-      width,
-      constraints.minWidth,
-      constraints.maxWidth
-    )
+      clamp(
+        width,
+        constraints.minWidth,
+        constraints.maxWidth
+      )
 
   height =
-    clamp(
-      height,
-      constraints.minHeight,
-      constraints.maxHeight
-        )
+      clamp(
+        height,
+        constraints.minHeight,
+        constraints.maxHeight
+      )
 
-        for _, child in ipairs(children) do
-          local horizontal, vertical =
-            getAlignment(child.node)
+  for _, child in ipairs(children) do
+    local horizontal, vertical =
+        getAlignment(child.node)
 
-          if horizontal == "center" then
-            child.x =
-              math.floor(
-                (width - child.width) / 2
-              )
+    if horizontal == "center" then
+      child.x =
+          math.floor(
+            (width - child.width) / 2
+          )
+    elseif horizontal == "right" then
+      child.x =
+          width - child.width
+    end
 
-          elseif horizontal == "right" then
-            child.x =
-              width - child.width
-          end
-
-          if vertical == "center" then
-            child.y =
-              math.floor(
-                (height - child.height) / 2
-              )
-
-          elseif vertical == "bottom" then
-            child.y =
-              height - child.height
-          end
-        end
+    if vertical == "center" then
+      child.y =
+          math.floor(
+            (height - child.height) / 2
+          )
+    elseif vertical == "bottom" then
+      child.y =
+          height - child.height
+    end
+  end
 
   return width, height, children
 end
 
 local function measureSpacer(
-  node,
-  constraints
+    node,
+    constraints
 )
   return
-    constraints.minWidth,
-    constraints.minHeight,
-    {}
+      constraints.minWidth,
+      constraints.minHeight,
+      {}
 end
 
 measureNode = function(node, constraints)
@@ -751,28 +742,28 @@ measureNode = function(node, constraints)
   )
 
   local paddingLeft,
-    paddingTop,
-    paddingRight,
-    paddingBottom =
-        getPadding(node)
+  paddingTop,
+  paddingRight,
+  paddingBottom =
+      getPadding(node)
 
   local borderLeft,
-    borderTop,
-    borderRight,
-    borderBottom =
-        getBorderInsets(node)
+  borderTop,
+  borderRight,
+  borderBottom =
+      getBorderInsets(node)
 
   local left =
-    paddingLeft + borderLeft
+      paddingLeft + borderLeft
 
   local top =
-    paddingTop + borderTop
+      paddingTop + borderTop
 
   local right =
-    paddingRight + borderRight
+      paddingRight + borderRight
 
   local bottom =
-    paddingBottom + borderBottom
+      paddingBottom + borderBottom
 
   local innerConstraints = {
     minWidth = math.max(
@@ -802,34 +793,28 @@ measureNode = function(node, constraints)
 
   if node.type == "text" then
     width, height, children =
-      measureText(node, innerConstraints)
-
+        measureText(node, innerConstraints)
   elseif node.type == "progress" then
     width, height, children =
-      measureProgress(node, innerConstraints)
-
+        measureProgress(node, innerConstraints)
   elseif node.type == "column" then
     width, height, children =
-            measureColumn(node, innerConstraints)
-
+        measureColumn(node, innerConstraints)
   elseif node.type == "row" then
     width, height, children =
-            measureRow(node, innerConstraints)
-
+        measureRow(node, innerConstraints)
   elseif node.type == "spacer" then
-      width, height, children =
+    width, height, children =
         measureSpacer(
-            node,
-            innerConstraints
-            )
-
-  elseif node.type == "box" then
-      width, height, children =
-        measureBox(
-            node,
-            innerConstraints
+          node,
+          innerConstraints
         )
-
+  elseif node.type == "box" then
+    width, height, children =
+        measureBox(
+          node,
+          innerConstraints
+        )
   else
     width = 0
     height = 0

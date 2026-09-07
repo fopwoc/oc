@@ -29,23 +29,23 @@ function nodes.Column(children, modifier)
 end
 
 function nodes.Row(children, modifier)
-    return createNode(
-        "row",
-        modifier,
-        {
-            children = children or {},
-        }
-    )
+  return createNode(
+    "row",
+    modifier,
+    {
+      children = children or {},
+    }
+  )
 end
 
 function nodes.Box(children, modifier)
-    return createNode(
-        "box",
-        modifier,
-        {
-            children = children or {},
-        }
-    )
+  return createNode(
+    "box",
+    modifier,
+    {
+      children = children or {},
+    }
+  )
 end
 
 function nodes.Spacer(modifier)

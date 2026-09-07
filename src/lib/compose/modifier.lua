@@ -75,7 +75,7 @@ function Modifier:weight(value)
 
   assert(
     type(value) == "number"
-      and value > 0,
+    and value > 0,
     "weight must be greater than 0"
   )
 
@@ -87,22 +87,22 @@ function Modifier:weight(value)
 end
 
 function Modifier:align(
-  horizontal,
-  vertical
+    horizontal,
+    vertical
 )
   assert(
     horizontal == nil
-      or horizontal == "left"
-      or horizontal == "center"
-      or horizontal == "right",
+    or horizontal == "left"
+    or horizontal == "center"
+    or horizontal == "right",
     "align horizontal must be left, center, or right"
   )
 
   assert(
     vertical == nil
-      or vertical == "top"
-      or vertical == "center"
-      or vertical == "bottom",
+    or vertical == "top"
+    or vertical == "center"
+    or vertical == "bottom",
     "align vertical must be top, center, or bottom"
   )
 
@@ -144,7 +144,7 @@ local DEFAULT_BORDER_CHARACTERS = {
 }
 
 local function normalizeBorderCharacters(
-  characters
+    characters
 )
   if characters == nil then
     return DEFAULT_BORDER_CHARACTERS
@@ -170,42 +170,42 @@ local function normalizeBorderCharacters(
 
   return {
     topLeft =
-      characters.topLeft
-      or DEFAULT_BORDER_CHARACTERS.topLeft,
+        characters.topLeft
+        or DEFAULT_BORDER_CHARACTERS.topLeft,
 
     top =
-      characters.top
-      or DEFAULT_BORDER_CHARACTERS.top,
+        characters.top
+        or DEFAULT_BORDER_CHARACTERS.top,
 
     topRight =
-      characters.topRight
-      or DEFAULT_BORDER_CHARACTERS.topRight,
+        characters.topRight
+        or DEFAULT_BORDER_CHARACTERS.topRight,
 
     right =
-      characters.right
-      or DEFAULT_BORDER_CHARACTERS.right,
+        characters.right
+        or DEFAULT_BORDER_CHARACTERS.right,
 
     bottomRight =
-      characters.bottomRight
-      or DEFAULT_BORDER_CHARACTERS.bottomRight,
+        characters.bottomRight
+        or DEFAULT_BORDER_CHARACTERS.bottomRight,
 
     bottom =
-      characters.bottom
-      or DEFAULT_BORDER_CHARACTERS.bottom,
+        characters.bottom
+        or DEFAULT_BORDER_CHARACTERS.bottom,
 
     bottomLeft =
-      characters.bottomLeft
-      or DEFAULT_BORDER_CHARACTERS.bottomLeft,
+        characters.bottomLeft
+        or DEFAULT_BORDER_CHARACTERS.bottomLeft,
 
     left =
-      characters.left
-      or DEFAULT_BORDER_CHARACTERS.left,
+        characters.left
+        or DEFAULT_BORDER_CHARACTERS.left,
   }
 end
 
 function Modifier:border(
-  color,
-  characters
+    color,
+    characters
 )
   return append(self, {
     phase = "border",
@@ -213,9 +213,9 @@ function Modifier:border(
 
     color = color,
     characters =
-      normalizeBorderCharacters(
-        characters
-      ),
+        normalizeBorderCharacters(
+          characters
+        ),
   })
 end
 
@@ -235,16 +235,16 @@ function Modifier:clickable(onClick)
 end
 
 function Modifier:scrollable(onScroll)
-    assert(
-        type(onScroll) == "function",
-        "scrollable() requires a function"
-    )
+  assert(
+    type(onScroll) == "function",
+    "scrollable() requires a function"
+  )
 
-    return append(self, {
-        phase = "input",
-        type = "scrollable",
-        onScroll = onScroll,
-    })
+  return append(self, {
+    phase = "input",
+    type = "scrollable",
+    onScroll = onScroll,
+  })
 end
 
 function Modifier:verticalScroll(state)

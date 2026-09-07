@@ -13,101 +13,101 @@ return {
       "lib/compose/hit_test.lua",
       "lib/compose/scroll.lua",
     },
-},
+  },
 
-    compose_components = {
-        depends = {
-          "compose",
-        },
-      files = {
-          "lib/components/init.lua",
-          "lib/components/card.lua",
-          "lib/components/button.lua",
-          "lib/components/toggle.lua",
-          "lib/components/dialog.lua",
-      },
+  compose_components = {
+    depends = {
+      "compose",
     },
+    files = {
+      "lib/components/init.lua",
+      "lib/components/card.lua",
+      "lib/components/button.lua",
+      "lib/components/toggle.lua",
+      "lib/components/dialog.lua",
+    },
+  },
 
-    test_compose = {
-      depends = {
-        "compose",
-      },
-      files = {
-        "test/ui.lua",
-      },
-      run = "test/ui.lua",
-      description = "UI showcase",
+  test_compose = {
+    depends = {
+      "compose",
     },
+    files = {
+      "test/ui.lua",
+    },
+    run = "test/ui.lua",
+    description = "UI showcase",
+  },
 
-    test_components = {
-      depends = {
-        "compose_components"
-      },
-      files = {
-        "test/components.lua",
-      },
-      run = "test/components.lua",
-      description = "Components showcase",
+  test_components = {
+    depends = {
+      "compose_components"
     },
+    files = {
+      "test/components.lua",
+    },
+    run = "test/components.lua",
+    description = "Components showcase",
+  },
 
-    test_unicode = {
-      files = {
-        "test/unicode.lua",
-      },
-      run = "test/unicode.lua",
-      description = "unicode test",
+  test_unicode = {
+    files = {
+      "test/unicode.lua",
     },
+    run = "test/unicode.lua",
+    description = "unicode test",
+  },
 
-    telemetry_protocol = {
-      files = {
-        "lib/telemetry/protocol.lua",
-      },
+  telemetry_protocol = {
+    files = {
+      "lib/telemetry/protocol.lua",
     },
+  },
 
-    telemetry_sender = {
-      depends = {
-        "telemetry_protocol",
-      },
-      files = {
-        "lib/telemetry/sender.lua",
-      },
+  telemetry_sender = {
+    depends = {
+      "telemetry_protocol",
     },
+    files = {
+      "lib/telemetry/sender.lua",
+    },
+  },
 
-    telemetry_receiver = {
-      depends = {
-        "telemetry_protocol",
-      },
-      files = {
-        "lib/telemetry/receiver.lua",
-      },
+  telemetry_receiver = {
+    depends = {
+      "telemetry_protocol",
     },
+    files = {
+      "lib/telemetry/receiver.lua",
+    },
+  },
 
-    crafter = {
-        depends = {
-          "compose_components",
-          "telemetry_sender",
-        },
-      files = {
-          "app/crafter/config.example.lua",
-          "app/crafter/scheduler.lua",
-          "app/crafter/main.lua",
-      },
-      run = "app/crafter/main.lua",
-      description = "Craft Scheduler",
+  crafter = {
+    depends = {
+      "compose_components",
+      "telemetry_sender",
     },
+    files = {
+      "app/crafter/config.example.lua",
+      "app/crafter/scheduler.lua",
+      "app/crafter/main.lua",
+    },
+    run = "app/crafter/main.lua",
+    description = "Craft Scheduler",
+  },
 
-    dashboard = {
-        depends = {
-            "compose_components",
-          "telemetry_receiver",
-        },
-      files = {
-          "app/dashboard/main.lua",
-          "app/dashboard/state.lua",
-      },
-      run = "app/dashboard/main.lua",
-      description = "Craft Dashboard",
+  dashboard = {
+    depends = {
+      "compose_components",
+      "telemetry_receiver",
     },
+    files = {
+      "app/dashboard/main.lua",
+      "app/dashboard/state.lua",
+    },
+    run = "app/dashboard/main.lua",
+    description = "Craft Dashboard",
+  },
 
 
   rain = {
@@ -116,16 +116,16 @@ return {
     },
     run = "script/rain.lua",
     description = "Matrix rain",
-    },
+  },
 
-    plasma = {
-        depends = {
-          "compose",
-        },
-      files = {
-        "script/plasma.lua",
-      },
-      run = "script/plasma.lua",
-      description = "Plasma",
+  plasma = {
+    depends = {
+      "compose",
     },
+    files = {
+      "script/plasma.lua",
+    },
+    run = "script/plasma.lua",
+    description = "Plasma",
+  },
 }

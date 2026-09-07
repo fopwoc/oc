@@ -10,31 +10,31 @@ local renderer = {}
 local previousFrame = nil
 
 local function getStyle(node)
-    local foreground =
-        0xFFFFFF
+  local foreground =
+      0xFFFFFF
 
-    local background =
-        nil
+  local background =
+      nil
 
-    if not node.modifier then
-        return foreground, background
-    end
-
-    for _, element in ipairs(
-        node.modifier.elements or {}
-    ) do
-        if element.phase == "draw" then
-            if element.type == "foreground" then
-                foreground =
-                    element.color
-            elseif element.type == "background" then
-                background =
-                    element.color
-            end
-        end
-    end
-
+  if not node.modifier then
     return foreground, background
+  end
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if element.phase == "draw" then
+      if element.type == "foreground" then
+        foreground =
+            element.color
+      elseif element.type == "background" then
+        background =
+            element.color
+      end
+    end
+  end
+
+  return foreground, background
 end
 
 local function getBorder(node)
@@ -46,8 +46,8 @@ local function getBorder(node)
     node.modifier.elements or {}
   ) do
     if
-      element.phase == "border"
-      and element.type == "border"
+        element.phase == "border"
+        and element.type == "border"
     then
       return element
     end
@@ -82,20 +82,20 @@ local function intersectClip(a, b)
   end
 
   local left =
-    math.max(a.left, b.left)
+      math.max(a.left, b.left)
 
   local top =
-    math.max(a.top, b.top)
+      math.max(a.top, b.top)
 
   local right =
-    math.min(a.right, b.right)
+      math.min(a.right, b.right)
 
   local bottom =
-    math.min(a.bottom, b.bottom)
+      math.min(a.bottom, b.bottom)
 
   if
-    left > right
-    or top > bottom
+      left > right
+      or top > bottom
   then
     return nil
   end
@@ -115,99 +115,99 @@ local function fillBounds(
     background,
     clip
 )
-    if background == nil then
-        return
-    end
+  if background == nil then
+    return
+  end
 
-    local bounds = {
-        left = measured.x,
-        top = measured.y,
+  local bounds = {
+    left = measured.x,
+    top = measured.y,
 
-        right =
-            measured.x
-            + measured.width
-            - 1,
+    right =
+        measured.x
+        + measured.width
+        - 1,
 
-        bottom =
-            measured.y
-            + measured.height
-            - 1,
-    }
+    bottom =
+        measured.y
+        + measured.height
+        - 1,
+  }
 
-    local visible =
-        intersectClip(
-            bounds,
-            clip
-        )
+  local visible =
+      intersectClip(
+        bounds,
+        clip
+      )
 
-    if not visible then
-        return
-    end
+  if not visible then
+    return
+  end
 
-    framebuffer.setForeground(
-        frame,
-        foreground
+  framebuffer.setForeground(
+    frame,
+    foreground
+  )
+
+  framebuffer.setBackground(
+    frame,
+    background
+  )
+
+  for y = visible.top, visible.bottom do
+    framebuffer.write(
+      frame,
+      visible.left,
+      y,
+      string.rep(
+        " ",
+        visible.right
+        - visible.left
+        + 1
+      )
     )
-
-    framebuffer.setBackground(
-        frame,
-        background
-    )
-
-    for y = visible.top, visible.bottom do
-        framebuffer.write(
-            frame,
-            visible.left,
-            y,
-            string.rep(
-                " ",
-                visible.right
-                - visible.left
-                + 1
-            )
-        )
-    end
+  end
 end
 
 local function drawBorder(
-  frame,
-  measured,
-  border,
-  clip
+    frame,
+    measured,
+    border,
+    clip
 )
   if not border then
     return
   end
 
   local left =
-    measured.x
+      measured.x
 
   local top =
-    measured.y
+      measured.y
 
   local right =
-    measured.x
-    + measured.width
-    - 1
+      measured.x
+      + measured.width
+      - 1
 
   local bottom =
-    measured.y
-    + measured.height
-    - 1
+      measured.y
+      + measured.height
+      - 1
 
   if
-    left > right
-    or top > bottom
+      left > right
+      or top > bottom
   then
     return
   end
 
   local color =
-    border.color
-    or 0xFFFFFF
+      border.color
+      or 0xFFFFFF
 
   local chars =
-    border.characters
+      border.characters
 
   framebuffer.setForeground(
     frame,
@@ -216,10 +216,10 @@ local function drawBorder(
 
   local function visible(x, y)
     return
-      x >= clip.left
-      and x <= clip.right
-      and y >= clip.top
-      and y <= clip.bottom
+        x >= clip.left
+        and x <= clip.right
+        and y >= clip.top
+        and y <= clip.bottom
   end
 
   local function put(x, y, char)
@@ -235,8 +235,8 @@ local function drawBorder(
 
   -- Совсем вырожденный случай.
   if
-    left == right
-    and top == bottom
+      left == right
+      and top == bottom
   then
     put(
       left,
@@ -311,44 +311,44 @@ local function drawBorder(
 end
 
 local function drawText(
-  frame,
-  measured,
-  node,
-  clip,
-  background
+    frame,
+    measured,
+    node,
+    clip,
+    background
 )
   local text =
-    tostring(node.props.text or "")
+      tostring(node.props.text or "")
 
   local y =
-    measured.contentY
+      measured.contentY
 
   if
-    y < clip.top
-    or y > clip.bottom
+      y < clip.top
+      or y > clip.bottom
   then
     return
   end
 
   local textLeft =
-    measured.contentX
+      measured.contentX
 
   local contentRight =
-    textLeft
-    + measured.contentWidth
-    - 1
+      textLeft
+      + measured.contentWidth
+      - 1
 
   local visibleLeft =
-    math.max(
-      textLeft,
-      clip.left
-    )
+      math.max(
+        textLeft,
+        clip.left
+      )
 
   local visibleRight =
-    math.min(
-      contentRight,
-      clip.right
-    )
+      math.min(
+        contentRight,
+        clip.right
+      )
 
   if visibleLeft > visibleRight then
     return
@@ -358,27 +358,27 @@ local function drawText(
   local drawX = nil
 
   local x =
-    textLeft
+      textLeft
 
   local length =
-    unicode.len(text)
+      unicode.len(text)
 
   for i = 1, length do
     local char =
-      unicode.sub(
-        text,
-        i,
-        i
-      )
+        unicode.sub(
+          text,
+          i,
+          i
+        )
 
     local width =
-      unicode.charWidth(char)
+        unicode.charWidth(char)
 
     local charLeft =
-      x
+        x
 
     local charRight =
-      x + width - 1
+        x + width - 1
 
     if charLeft > contentRight then
       break
@@ -387,32 +387,32 @@ local function drawText(
     -- Рисуем только полностью видимый glyph.
     -- Половину wide-char рисовать нельзя.
     if
-      charLeft >= visibleLeft
-      and charRight <= visibleRight
-      and charRight <= contentRight
+        charLeft >= visibleLeft
+        and charRight <= visibleRight
+        and charRight <= contentRight
     then
       if not drawX then
         drawX =
-          charLeft
+            charLeft
       end
 
       chars[#chars + 1] =
-        char
+          char
     end
 
     x =
-      x + width
+        x + width
   end
 
   if
-    not drawX
-    or #chars == 0
+      not drawX
+      or #chars == 0
   then
     return
   end
 
   local visibleText =
-    table.concat(chars)
+      table.concat(chars)
 
   if background ~= nil then
     framebuffer.write(
@@ -432,67 +432,67 @@ local function drawText(
 end
 
 local function drawProgress(
-  frame,
-  measured,
-  node,
-  clip,
-  background
+    frame,
+    measured,
+    node,
+    clip,
+    background
 )
   local width =
-    measured.contentWidth
+      measured.contentWidth
 
   local value =
-    node.props.value or 0
+      node.props.value or 0
 
   local filled =
-    math.floor(
-      width * value
-    )
+      math.floor(
+        width * value
+      )
 
   local text =
-    string.rep("#", filled)
+      string.rep("#", filled)
       .. string.rep(
         "-",
         width - filled
       )
 
   local y =
-    measured.contentY
+      measured.contentY
 
   if
-    y < clip.top
-    or y > clip.bottom
+      y < clip.top
+      or y > clip.bottom
   then
     return
   end
 
   local left =
-    measured.contentX
+      measured.contentX
 
   local right =
-    left + width - 1
+      left + width - 1
 
   local visibleLeft =
-    math.max(
-      left,
-      clip.left
-    )
+      math.max(
+        left,
+        clip.left
+      )
 
   local visibleRight =
-    math.min(
-      right,
-      clip.right
-    )
+      math.min(
+        right,
+        clip.right
+      )
 
-    if visibleLeft > visibleRight then
-        return
-    end
+  if visibleLeft > visibleRight then
+    return
+  end
 
   local visibleText =
-    text:sub(
-      visibleLeft - left + 1,
-      visibleRight - left + 1
-    )
+      text:sub(
+        visibleLeft - left + 1,
+        visibleRight - left + 1
+      )
 
   if background ~= nil then
     framebuffer.write(
@@ -512,62 +512,62 @@ local function drawProgress(
 end
 
 local function drawNode(
-  frame,
-  measured,
-  parentX,
-  parentY,
-  parentDebugColor,
-  clip
+    frame,
+    measured,
+    parentX,
+    parentY,
+    parentDebugColor,
+    clip
 )
   local node =
-    measured.node
+      measured.node
 
   local absoluteX =
-    parentX + measured.x
+      parentX + measured.x
 
   local absoluteY =
-    parentY + measured.y
+      parentY + measured.y
 
   local originalX =
-    measured.x
+      measured.x
 
   local originalY =
-    measured.y
+      measured.y
 
   local originalContentX =
-    measured.contentX
+      measured.contentX
 
   local originalContentY =
-    measured.contentY
+      measured.contentY
 
   measured.x =
-    absoluteX
+      absoluteX
 
   measured.y =
-    absoluteY
+      absoluteY
 
   measured.contentX =
-    absoluteX
+      absoluteX
       + originalContentX
 
   measured.contentY =
-    absoluteY
+      absoluteY
       + originalContentY
 
   local foreground,
-        background =
-    getStyle(node)
+  background =
+      getStyle(node)
 
   local ownDebugColor =
-    debug.getRecompositionColor(node)
+      debug.getRecompositionColor(node)
 
   local debugColor =
-    ownDebugColor
-    or parentDebugColor
+      ownDebugColor
+      or parentDebugColor
 
   if debugColor then
     background =
-      debugColor
+        debugColor
   end
 
   fillBounds(
@@ -576,17 +576,17 @@ local function drawNode(
     foreground,
     background,
     clip
-    )
+  )
 
-    local border =
+  local border =
       getBorder(node)
 
-    drawBorder(
-      frame,
-      measured,
-      border,
-      clip
-    )
+  drawBorder(
+    frame,
+    measured,
+    border,
+    clip
+  )
 
   framebuffer.setForeground(
     frame,
@@ -608,7 +608,6 @@ local function drawNode(
       clip,
       background
     )
-
   elseif node.type == "progress" then
     drawProgress(
       frame,
@@ -620,32 +619,32 @@ local function drawNode(
   end
 
   local childClip =
-    clip
+      clip
 
   if hasVerticalScroll(node) then
     local viewport = {
       left =
-        measured.contentX,
+          measured.contentX,
 
       top =
-        measured.contentY,
+          measured.contentY,
 
       right =
-        measured.contentX
-        + measured.contentWidth
-        - 1,
+          measured.contentX
+          + measured.contentWidth
+          - 1,
 
       bottom =
-        measured.contentY
-        + measured.contentHeight
-        - 1,
+          measured.contentY
+          + measured.contentHeight
+          - 1,
     }
 
     childClip =
-      intersectClip(
-        clip,
-        viewport
-      )
+        intersectClip(
+          clip,
+          viewport
+        )
   end
 
   if childClip then
@@ -664,32 +663,32 @@ local function drawNode(
   end
 
   measured.x =
-    originalX
+      originalX
 
   measured.y =
-    originalY
+      originalY
 
   measured.contentX =
-    originalContentX
+      originalContentX
 
   measured.contentY =
-    originalContentY
+      originalContentY
 end
 
 function renderer.render(tree)
   local gpu =
-    component.gpu
+      component.gpu
 
   local width,
-        height =
-    gpu.getResolution()
+  height =
+      gpu.getResolution()
 
   local measured =
-    layout.measure(
-      tree,
-      width,
-      height
-    )
+      layout.measure(
+        tree,
+        width,
+        height
+      )
 
   local frame = framebuffer.create(width, height)
 
@@ -714,31 +713,31 @@ function renderer.render(tree)
   )
 
   previousFrame =
-    frame
+      frame
 
   return measured
 end
 
 function renderer.reset()
-    previousFrame = nil
+  previousFrame = nil
 
-    local gpu =
-        component.gpu
+  local gpu =
+      component.gpu
 
-    local width,
-    height =
-        gpu.getResolution()
+  local width,
+  height =
+      gpu.getResolution()
 
-    gpu.setForeground(0xFFFFFF)
-    gpu.setBackground(0x000000)
+  gpu.setForeground(0xFFFFFF)
+  gpu.setBackground(0x000000)
 
-    gpu.fill(
-        1,
-        1,
-        width,
-        height,
-        " "
-    )
+  gpu.fill(
+    1,
+    1,
+    width,
+    height,
+    " "
+  )
 end
 
 return renderer

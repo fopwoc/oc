@@ -40,7 +40,7 @@ local function markScopeDirty(scope)
   scope.dirty = true
 
   local parent =
-    scope.parent
+      scope.parent
 
   while parent do
     parent.hasDirtyDescendant = true
@@ -74,8 +74,8 @@ end
 
 local function cancelEffect(effect)
   if
-    effect
-    and effect.kind == "effect"
+      effect
+      and effect.kind == "effect"
   then
     effect.cancelled = true
   end
@@ -102,8 +102,8 @@ end
 local function finishScope(scope)
   for index, value in pairs(scope.slots) do
     if
-      type(index) == "number"
-      and index > scope.slot
+        type(index) == "number"
+        and index > scope.slot
     then
       cancelEffect(value)
       scope.slots[index] = nil
@@ -162,42 +162,40 @@ function runtime.remember(initial)
   )
 
   currentScope.slot =
-    currentScope.slot + 1
+      currentScope.slot + 1
 
   local index =
-    currentScope.slot
+      currentScope.slot
 
   local value =
-    currentScope.slots[index]
+      currentScope.slots[index]
 
   if value == nil then
     if type(initial) == "function" then
       value =
-        createState(
-          initial()
-        )
+          createState(
+            initial()
+          )
     else
       value =
-        createState(initial)
+          createState(initial)
     end
 
     currentScope.slots[index] =
-      value
+        value
   end
 
   return value
 end
 
-
 function runtime.delay(seconds)
   coroutine.yield({
     kind = "delay",
     wakeAt =
-      computer.uptime()
+        computer.uptime()
         + seconds,
   })
 end
-
 
 function runtime.awaitEvent(name)
   assert(
@@ -211,7 +209,6 @@ function runtime.awaitEvent(name)
   })
 end
 
-
 function runtime.LaunchedEffect(key, block)
   assert(
     currentScope,
@@ -219,18 +216,18 @@ function runtime.LaunchedEffect(key, block)
   )
 
   currentScope.slot =
-    currentScope.slot + 1
+      currentScope.slot + 1
 
   local index =
-    currentScope.slot
+      currentScope.slot
 
   local old =
-    currentScope.slots[index]
+      currentScope.slots[index]
 
   if
-    old
-    and old.kind == "effect"
-    and old.key == key
+      old
+      and old.kind == "effect"
+      and old.key == key
   then
     return
   end
@@ -243,7 +240,7 @@ function runtime.LaunchedEffect(key, block)
     kind = "effect",
     key = key,
     thread =
-      coroutine.create(block),
+        coroutine.create(block),
 
     wakeAt = 0,
     waitingEvent = nil,
@@ -252,14 +249,13 @@ function runtime.LaunchedEffect(key, block)
   }
 
   currentScope.slots[index] =
-    effect
+      effect
 
   table.insert(
     composition.effects,
     effect
   )
 end
-
 
 function runtime.RecomposeScope(key, content)
   assert(
@@ -273,36 +269,36 @@ function runtime.RecomposeScope(key, content)
   )
 
   local parent =
-    currentScope
+      currentScope
 
   if parent.seenScopes then
     parent.seenScopes[key] = true
   end
 
   local scope =
-    parent.scopes[key]
+      parent.scopes[key]
 
   if not scope then
     scope =
-      createScope(
-        key,
-        parent
-      )
+        createScope(
+          key,
+          parent
+        )
 
     parent.scopes[key] =
-      scope
+        scope
   end
 
   local recomposing =
-    scope.dirty
-    or not scope.node
+      scope.dirty
+      or not scope.node
 
   local traversing =
-    scope.hasDirtyDescendant
+      scope.hasDirtyDescendant
 
   if
-    not recomposing
-    and not traversing
+      not recomposing
+      and not traversing
   then
     return scope.node
   end
@@ -317,22 +313,22 @@ function runtime.RecomposeScope(key, content)
 
   if recomposing then
     scope.generation =
-      scope.generation + 1
+        scope.generation + 1
   end
 
   scope.seenScopes = {}
 
   local previousScope =
-    currentScope
+      currentScope
 
   currentScope =
-    scope
+      scope
 
   local ok, node =
-    pcall(content)
+      pcall(content)
 
   currentScope =
-    previousScope
+      previousScope
 
   if not ok then
     error(node, 0)
@@ -344,24 +340,23 @@ function runtime.RecomposeScope(key, content)
     node.__compose = {
       key = key,
       generation =
-        scope.generation,
+          scope.generation,
     }
   end
 
   scope.node =
-    node
+      node
 
   return node
 end
 
-
 local function composeRoot(content)
   local root =
-    composition.root
+      composition.root
 
   local recomposing =
-    root.dirty
-    or not root.node
+      root.dirty
+      or not root.node
 
   if recomposing then
     removeDependencies(root)
@@ -373,19 +368,19 @@ local function composeRoot(content)
 
   if recomposing then
     root.generation =
-      root.generation + 1
+        root.generation + 1
   end
 
   root.seenScopes = {}
 
   currentScope =
-    root
+      root
 
   local ok, tree =
-    pcall(content)
+      pcall(content)
 
   currentScope =
-    nil
+      nil
 
   if not ok then
     error(tree, 0)
@@ -394,64 +389,62 @@ local function composeRoot(content)
   finishScope(root)
 
   root.node =
-    tree
+      tree
 
   return tree
 end
 
 
 local function resumeEffect(
-  effect,
-  ...
+    effect,
+    ...
 )
   effect.waitingEvent =
-    nil
+      nil
 
   local ok, yielded =
-    coroutine.resume(
-      effect.thread,
-      ...
-    )
+      coroutine.resume(
+        effect.thread,
+        ...
+      )
 
   if not ok then
     error(yielded, 0)
   end
 
   if
-    coroutine.status(effect.thread)
+      coroutine.status(effect.thread)
       == "dead"
   then
     return
   end
 
   if
-    type(yielded) == "table"
-    and yielded.kind == "delay"
+      type(yielded) == "table"
+      and yielded.kind == "delay"
   then
     effect.wakeAt =
-      yielded.wakeAt
+        yielded.wakeAt
     effect.waitingEvent =
-      nil
-
+        nil
   elseif
-    type(yielded) == "table"
-    and yielded.kind == "event"
+      type(yielded) == "table"
+      and yielded.kind == "event"
   then
     effect.waitingEvent =
-      yielded.name
-
+        yielded.name
   else
     effect.wakeAt =
-      computer.uptime()
+        computer.uptime()
     effect.waitingEvent =
-      nil
+        nil
   end
 end
 
 
 local function runEffects()
   local now =
-    computer.uptime()
+      computer.uptime()
 
   local index = 1
 
@@ -459,31 +452,30 @@ local function runEffects()
     index <= #composition.effects
   do
     local effect =
-      composition.effects[index]
+        composition.effects[index]
 
     if
-      effect.cancelled
-      or coroutine.status(
-        effect.thread
-      ) == "dead"
+        effect.cancelled
+        or coroutine.status(
+          effect.thread
+        ) == "dead"
     then
       table.remove(
         composition.effects,
         index
       )
-
     elseif
-      not effect.waitingEvent
-      and effect.wakeAt <= now
+        not effect.waitingEvent
+        and effect.wakeAt <= now
     then
       resumeEffect(
         effect
       )
 
       if
-        coroutine.status(
-          effect.thread
-        ) == "dead"
+          coroutine.status(
+            effect.thread
+          ) == "dead"
       then
         table.remove(
           composition.effects,
@@ -491,12 +483,11 @@ local function runEffects()
         )
       else
         index =
-          index + 1
+            index + 1
       end
-
     else
       index =
-        index + 1
+          index + 1
     end
   end
 end
@@ -504,7 +495,7 @@ end
 
 local function dispatchEvent(signal)
   local name =
-    signal[1]
+      signal[1]
 
   if not name then
     return
@@ -514,12 +505,12 @@ local function dispatchEvent(signal)
     composition.effects
   ) do
     if
-      not effect.cancelled
-      and effect.waitingEvent
+        not effect.cancelled
+        and effect.waitingEvent
         == name
-      and coroutine.status(
-        effect.thread
-      ) ~= "dead"
+        and coroutine.status(
+          effect.thread
+        ) ~= "dead"
     then
       resumeEffect(
         effect,
@@ -537,18 +528,18 @@ local function nextWake()
     composition.effects
   ) do
     if
-      not effect.cancelled
-      and not effect.waitingEvent
-      and coroutine.status(
-        effect.thread
-      ) ~= "dead"
+        not effect.cancelled
+        and not effect.waitingEvent
+        and coroutine.status(
+          effect.thread
+        ) ~= "dead"
     then
       if
-        wakeAt == nil
-        or effect.wakeAt < wakeAt
+          wakeAt == nil
+          or effect.wakeAt < wakeAt
       then
         wakeAt =
-          effect.wakeAt
+            effect.wakeAt
       end
     end
   end
@@ -560,39 +551,39 @@ local function nextWake()
   return math.max(
     0,
     wakeAt
-      - computer.uptime()
+    - computer.uptime()
   )
 end
 
 local function isLocalInput(item)
   local gpu =
-    component.gpu
+      component.gpu
 
   local screen =
-    gpu.getScreen()
+      gpu.getScreen()
 
   if not screen then
     return false
   end
 
   if
-    item.type == "touch"
-    or item.type == "scroll"
-    or item.type == "drag"
-    or item.type == "drop"
+      item.type == "touch"
+      or item.type == "scroll"
+      or item.type == "drag"
+      or item.type == "drop"
   then
     return item.screen == screen
   end
 
   if
-    item.type == "keyDown"
-    or item.type == "keyUp"
+      item.type == "keyDown"
+      or item.type == "keyUp"
   then
     local keyboards =
-      component.invoke(
-        screen,
-        "getKeyboards"
-      )
+        component.invoke(
+          screen,
+          "getKeyboards"
+        )
 
     for _, address in ipairs(
       keyboards
@@ -611,77 +602,75 @@ end
 local function processInput()
   for _, item in ipairs(
     input.drain()
-    ) do
-  if isLocalInput(item) then
-    -- Global quit shortcut.
-    if item.type == "keyDown" then
-      if
-        item.char
-          == string.byte("q")
-        or item.char
-          == string.byte("Q")
-      then
-        composition.running =
-          false
-      end
+  ) do
+    if isLocalInput(item) then
+      -- Global quit shortcut.
+      if item.type == "keyDown" then
+        if
+            item.char
+            == string.byte("q")
+            or item.char
+            == string.byte("Q")
+        then
+          composition.running =
+              false
+        end
+      elseif item.type == "touch" then
+        local hit =
+            hitTest.find(
+              composition.layout,
+              item.x,
+              item.y,
+              "touch"
+            )
 
-    elseif item.type == "touch" then
-      local hit =
-        hitTest.find(
-          composition.layout,
-          item.x,
-          item.y,
-          "touch"
-        )
-
-      if
-        hit
-        and hit.modifier
-        and hit.modifier.onClick
-      then
-        hit.modifier.onClick({
-          x = hit.localX,
-          y = hit.localY,
-
-          screenX = item.x,
-          screenY = item.y,
-
-          button = item.button,
-          player = item.player,
-          screen = item.screen,
-        })
-      end
-
-    elseif item.type == "scroll" then
-      local hit =
-        hitTest.find(
-          composition.layout,
-          item.x,
-          item.y,
-          "scroll"
-        )
-
-      if
-        hit
-        and hit.modifier
-        and hit.modifier.onScroll
-      then
-        hit.modifier.onScroll(
-          item.direction,
-          {
+        if
+            hit
+            and hit.modifier
+            and hit.modifier.onClick
+        then
+          hit.modifier.onClick({
             x = hit.localX,
             y = hit.localY,
 
             screenX = item.x,
             screenY = item.y,
 
+            button = item.button,
             player = item.player,
             screen = item.screen,
-          }
-        )
+          })
+        end
+      elseif item.type == "scroll" then
+        local hit =
+            hitTest.find(
+              composition.layout,
+              item.x,
+              item.y,
+              "scroll"
+            )
+
+        if
+            hit
+            and hit.modifier
+            and hit.modifier.onScroll
+        then
+          hit.modifier.onScroll(
+            item.direction,
+            {
+              x = hit.localX,
+              y = hit.localY,
+
+              screenX = item.x,
+              screenY = item.y,
+
+              player = item.player,
+              screen = item.screen,
+            }
+          )
+        end
       end
     end
-  end
   end
 end
 
@@ -707,10 +696,9 @@ end
 function runtime.invalidateLayout()
   if composition then
     composition.layoutDirty =
-      true
+        true
   end
 end
-
 
 function runtime.App(content, render)
   composition = {
@@ -723,10 +711,10 @@ function runtime.App(content, render)
   }
 
   composition.root =
-    createScope(
-      "__root",
-      nil
-    )
+      createScope(
+        "__root",
+        nil
+      )
 
   input.clear()
 
@@ -736,25 +724,25 @@ function runtime.App(content, render)
 
     if composition.dirty then
       composition.dirty =
-        false
+          false
 
       composition.tree =
-        composeRoot(
-          content
-        )
+          composeRoot(
+            content
+          )
 
       composition.layoutDirty =
-        true
+          true
     end
 
     if composition.layoutDirty then
       composition.layoutDirty =
-        false
+          false
 
       composition.layout =
-        render(
-          composition.tree
-        )
+          render(
+            composition.tree
+          )
     end
 
     if not composition.running then
@@ -770,11 +758,10 @@ function runtime.App(content, render)
   end
 
   currentScope =
-    nil
+      nil
 
   composition =
-    nil
+      nil
 end
-
 
 return runtime

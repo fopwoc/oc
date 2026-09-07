@@ -1,23 +1,23 @@
 local serialization =
-  require("serialization")
+    require("serialization")
 
 local protocol = {}
 
 protocol.NAME =
-  "oc-telemetry"
+"oc-telemetry"
 
 protocol.VERSION =
-  1
+    1
 
 protocol.DEFAULT_PORT =
-  4242
+    4242
 
 
 function protocol.encode(
-  source,
-  id,
-  uptime,
-  data
+    source,
+    id,
+    uptime,
+    data
 )
   assert(
     type(source) == "string",
@@ -41,25 +41,24 @@ function protocol.encode(
 
   return serialization.serialize({
     protocol =
-      protocol.NAME,
+        protocol.NAME,
 
     version =
-      protocol.VERSION,
+        protocol.VERSION,
 
     source =
-      source,
+        source,
 
     id =
-      id,
+        id,
 
     uptime =
-      uptime,
+        uptime,
 
     data =
-      data,
+        data,
   })
 end
-
 
 function protocol.decode(payload)
   if type(payload) ~= "string" then
@@ -67,36 +66,35 @@ function protocol.decode(payload)
   end
 
   local ok, packet =
-    pcall(
-      serialization.unserialize,
-      payload
-    )
+      pcall(
+        serialization.unserialize,
+        payload
+      )
 
   if
-    not ok
-    or type(packet) ~= "table"
+      not ok
+      or type(packet) ~= "table"
   then
     return nil
   end
 
   if
-    packet.protocol ~= protocol.NAME
-    or packet.version ~= protocol.VERSION
+      packet.protocol ~= protocol.NAME
+      or packet.version ~= protocol.VERSION
   then
     return nil
   end
 
   if
-    type(packet.source) ~= "string"
-    or type(packet.id) ~= "string"
-    or type(packet.uptime) ~= "number"
-    or type(packet.data) ~= "table"
+      type(packet.source) ~= "string"
+      or type(packet.id) ~= "string"
+      or type(packet.uptime) ~= "number"
+      or type(packet.data) ~= "table"
   then
     return nil
   end
 
   return packet
 end
-
 
 return protocol
