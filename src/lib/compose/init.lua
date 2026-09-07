@@ -2,6 +2,7 @@ local runtime = require("../lib/compose/runtime")
 local nodes = require("../lib/compose/nodes")
 local renderer = require("../lib/compose/renderer")
 local modifier = require("../lib/compose/modifier")
+local color = require("../lib/compose/color")
 local scroll = require("../lib/compose/scroll")
 
 local compose = {}
@@ -22,6 +23,8 @@ compose.Row = nodes.Row
 compose.Spacer = nodes.Spacer
 compose.Box = nodes.Box
 compose.Progress = nodes.Progress
+
+compose.Color = color.create
 
 -- Modifiers
 

@@ -161,6 +161,39 @@ local function getWeight(node)
   return nil
 end
 
+local function getOffset(node)
+  local x = 0
+  local y = 0
+
+  if not node.modifier then
+    return x, y
+  end
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if
+        element.phase == "layout"
+        and element.type == "offset"
+    then
+      x = x + element.x
+      y = y + element.y
+    end
+  end
+
+  return x, y
+end
+
+local function applyOffsets(children)
+  for _, child in ipairs(children) do
+    local offsetX, offsetY =
+        getOffset(child.node)
+
+    child.x = child.x + offsetX
+    child.y = child.y + offsetY
+  end
+end
+
 local measureNode
 
 local function measureText(node, constraints)
@@ -417,6 +450,8 @@ local function measureColumn(
     end
   end
 
+  applyOffsets(children)
+
   if verticalScroll then
     local state =
         verticalScroll.state
@@ -632,6 +667,8 @@ local function measureRow(
     end
   end
 
+  applyOffsets(children)
+
   return
       width,
       height,
@@ -721,6 +758,8 @@ local function measureBox(
           height - child.height
     end
   end
+
+  applyOffsets(children)
 
   return width, height, children
 end

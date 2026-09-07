@@ -1,4 +1,5 @@
 local modifier = {}
+local color = require("../lib/compose/color")
 
 local Modifier = {}
 Modifier.__index = Modifier
@@ -114,6 +115,21 @@ function Modifier:align(
   })
 end
 
+function Modifier:offset(x, y)
+  assert(
+    type(x) == "number"
+      and type(y or 0) == "number",
+    "offset requires numeric x and y values"
+  )
+
+  return append(self, {
+    phase = "layout",
+    type = "offset",
+    x = x,
+    y = y or 0,
+  })
+end
+
 -- Draw
 
 function Modifier:background(color)
@@ -129,6 +145,14 @@ function Modifier:foreground(color)
     phase = "draw",
     type = "foreground",
     color = color,
+  })
+end
+
+function Modifier:scrim(value, alpha)
+  return append(self, {
+    phase = "draw",
+    type = "scrim",
+    color = color.create(value, alpha),
   })
 end
 

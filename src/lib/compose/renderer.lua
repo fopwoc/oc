@@ -37,6 +37,25 @@ local function getStyle(node)
   return foreground, background
 end
 
+local function getScrim(node)
+  if not node.modifier then
+    return nil
+  end
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if
+        element.phase == "draw"
+        and element.type == "scrim"
+    then
+      return element.color
+    end
+  end
+
+  return nil
+end
+
 local function getBorder(node)
   if not node.modifier then
     return nil
@@ -144,29 +163,24 @@ local function fillBounds(
     return
   end
 
-  framebuffer.setForeground(
-    frame,
-    foreground
-  )
-
-  framebuffer.setBackground(
-    frame,
-    background
-  )
-
-  for y = visible.top, visible.bottom do
-    framebuffer.write(
-      frame,
-      visible.left,
-      y,
-      string.rep(
-        " ",
-        visible.right
-        - visible.left
-        + 1
-      )
+    framebuffer.setForeground(
+        frame,
+        foreground
     )
-  end
+
+    framebuffer.setBackground(
+        frame,
+        background
+    )
+
+    framebuffer.fillBackground(
+        frame,
+        visible.left,
+        visible.top,
+        visible.right - visible.left + 1,
+        visible.bottom - visible.top + 1,
+        background
+    )
 end
 
 local function drawBorder(
@@ -568,6 +582,33 @@ local function drawNode(
   if debugColor then
     background =
         debugColor
+  end
+
+  local scrim =
+      getScrim(node)
+
+  if scrim then
+    local scrimBounds =
+        intersectClip(
+          {
+            left = measured.x,
+            top = measured.y,
+            right = measured.x + measured.width - 1,
+            bottom = measured.y + measured.height - 1,
+          },
+          clip
+        )
+
+    if scrimBounds then
+      framebuffer.tint(
+          frame,
+          scrimBounds.left,
+          scrimBounds.top,
+          scrimBounds.right - scrimBounds.left + 1,
+          scrimBounds.bottom - scrimBounds.top + 1,
+          scrim
+      )
+    end
   end
 
   fillBounds(

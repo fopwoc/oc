@@ -33,5 +33,6 @@ bash -n check.sh
 bash -n devserver.sh
 
 "$LUA_BIN" src/test/engine.lua
+"$LUA_BIN" src/test/color.lua
 
 echo "check: OK"

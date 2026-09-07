@@ -1,4 +1,5 @@
 local unicode = require("unicode")
+local color = require("../lib/compose/color")
 
 local framebuffer = {}
 
@@ -83,8 +84,19 @@ local function writeChar(
     return width
   end
 
+  local existingForeground =
+      frame.foreground[index(
+        frame.width,
+        x,
+        y
+      )]
+      or DEFAULT_FOREGROUND
+
   local foreground =
-      frame.foregroundColor
+      color.blend(
+        frame.foregroundColor,
+        existingForeground
+      )
 
   local background
 
@@ -100,8 +112,19 @@ local function writeChar(
         frame.background[i]
         or DEFAULT_BACKGROUND
   else
+    local existingBackground =
+        frame.background[index(
+          frame.width,
+          x,
+          y
+        )]
+        or DEFAULT_BACKGROUND
+
     background =
-        frame.backgroundColor
+        color.blend(
+          frame.backgroundColor,
+          existingBackground
+        )
   end
 
   setCell(
@@ -240,6 +263,90 @@ function framebuffer.writeForeground(
     text,
     true
   )
+end
+
+function framebuffer.fillBackground(
+    frame,
+    x,
+    y,
+    width,
+    height,
+    background
+)
+  local _, alpha =
+      color.resolve(background)
+
+  if alpha == 0 then
+    return
+  end
+
+  for row = y, y + height - 1 do
+    if row >= 1 and row <= frame.height then
+      for column = x, x + width - 1 do
+        if column >= 1 and column <= frame.width then
+          local i = index(frame.width, column, row)
+          local existingBackground =
+              frame.background[i]
+              or DEFAULT_BACKGROUND
+
+          frame.background[i] =
+              color.blend(
+                background,
+                existingBackground
+              )
+
+          if alpha == 1 then
+            frame.chars[i] = " "
+            frame.foreground[i] =
+                color.blend(
+                  frame.foregroundColor,
+                  frame.foreground[i]
+                    or DEFAULT_FOREGROUND
+                )
+          end
+        end
+      end
+    end
+  end
+end
+
+function framebuffer.tint(
+    frame,
+    x,
+    y,
+    width,
+    height,
+    value
+)
+  local _, alpha = color.resolve(value)
+
+  if alpha == 0 then
+    return
+  end
+
+  for row = y, y + height - 1 do
+    if row >= 1 and row <= frame.height then
+      for column = x, x + width - 1 do
+        if column >= 1 and column <= frame.width then
+          local i = index(frame.width, column, row)
+
+          frame.foreground[i] =
+              color.blend(
+                value,
+                frame.foreground[i]
+                  or DEFAULT_FOREGROUND
+              )
+
+          frame.background[i] =
+              color.blend(
+                value,
+                frame.background[i]
+                  or DEFAULT_BACKGROUND
+              )
+        end
+      end
+    end
+  end
 end
 
 local function getCell(frame, i)

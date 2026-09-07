@@ -41,9 +41,10 @@ function dialog.Dialog(
       )
     },
     compose.Modifier
-    :fillMaxWidth()
-    :fillMaxHeight()
-    :clickable(function()
+      :fillMaxWidth()
+      :fillMaxHeight()
+      :scrim(0x000000, 0.55)
+      :clickable(function()
       -- Modal input barrier.
     end)
     :scrollable(function()

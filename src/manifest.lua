@@ -9,6 +9,7 @@ return {
       "lib/compose/init.lua",
       "lib/compose/debug.lua",
       "lib/compose/modifier.lua",
+      "lib/compose/color.lua",
       "lib/compose/layout.lua",
       "lib/compose/input.lua",
       "lib/compose/input_target.lua",
@@ -57,6 +58,17 @@ return {
     },
     run = "test/unicode.lua",
       description = "unicode test",
+    },
+
+    test_colors = {
+      depends = {
+        "compose",
+      },
+      files = {
+        "test/colors.lua",
+      },
+      run = "test/colors.lua",
+      description = "Color compositing showcase",
     },
 
   telemetry_protocol = {
