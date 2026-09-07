@@ -1,4 +1,4 @@
-local hitTest = {}
+local inputTarget = {}
 
 local function contains(
     node,
@@ -118,7 +118,7 @@ local function search(
   }
 end
 
-function hitTest.find(
+function inputTarget.find(
     root,
     x,
     y,
@@ -127,7 +127,6 @@ function hitTest.find(
   if not root then
     return nil
   end
-
 
   return search(
     root,
@@ -139,4 +138,4 @@ function hitTest.find(
   )
 end
 
-return hitTest
+return inputTarget

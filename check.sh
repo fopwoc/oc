@@ -29,6 +29,9 @@ if rg -n $'\t' src scripts devserver.sh check.sh; then
 fi
 
 "$LUA_BIN" scripts/check_manifest.lua
+bash -n check.sh
 bash -n devserver.sh
+
+"$LUA_BIN" src/test/engine.lua
 
 echo "check: OK"

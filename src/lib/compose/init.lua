@@ -45,12 +45,13 @@ end
 
 -- Application
 
-function compose.App(content)
+function compose.App(content, options)
   renderer.reset()
 
   runtime.App(
     content,
-    renderer.render
+    renderer.render,
+    options
   )
 end
 

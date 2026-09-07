@@ -1,14 +1,28 @@
-local component = require("component")
-local computer = require("computer")
-local event = require("event")
-
 local input = require("../lib/compose/input")
-local hitTest = require("../lib/compose/hit_test")
+local inputTarget = require("../lib/compose/input_target")
 
 local runtime = {}
 
 local composition = nil
 local currentScope = nil
+local defaultPlatform = nil
+local activePlatform = nil
+
+local function getPlatform()
+  if activePlatform then
+    return activePlatform
+  end
+
+  if not defaultPlatform then
+    defaultPlatform = require("../lib/compose/host").create()
+  end
+
+  return defaultPlatform
+end
+
+local function now()
+  return getPlatform().now()
+end
 
 
 local function createScope(key, parent)
@@ -192,7 +206,7 @@ function runtime.delay(seconds)
   coroutine.yield({
     kind = "delay",
     wakeAt =
-        computer.uptime()
+        now()
         + seconds,
   })
 end
@@ -435,7 +449,7 @@ local function resumeEffect(
         yielded.name
   else
     effect.wakeAt =
-        computer.uptime()
+        now()
     effect.waitingEvent =
         nil
   end
@@ -443,8 +457,8 @@ end
 
 
 local function runEffects()
-  local now =
-      computer.uptime()
+  local currentTime =
+      now()
 
   local index = 1
 
@@ -466,7 +480,7 @@ local function runEffects()
       )
     elseif
         not effect.waitingEvent
-        and effect.wakeAt <= now
+        and effect.wakeAt <= currentTime
     then
       resumeEffect(
         effect
@@ -551,52 +565,12 @@ local function nextWake()
   return math.max(
     0,
     wakeAt
-    - computer.uptime()
+    - now()
   )
 end
 
 local function isLocalInput(item)
-  local gpu =
-      component.gpu
-
-  local screen =
-      gpu.getScreen()
-
-  if not screen then
-    return false
-  end
-
-  if
-      item.type == "touch"
-      or item.type == "scroll"
-      or item.type == "drag"
-      or item.type == "drop"
-  then
-    return item.screen == screen
-  end
-
-  if
-      item.type == "keyDown"
-      or item.type == "keyUp"
-  then
-    local keyboards =
-        component.invoke(
-          screen,
-          "getKeyboards"
-        )
-
-    for _, address in ipairs(
-      keyboards
-    ) do
-      if item.keyboard == address then
-        return true
-      end
-    end
-
-    return false
-  end
-
-  return true
+  return getPlatform().isLocalInput(item)
 end
 
 local function processInput()
@@ -617,7 +591,7 @@ local function processInput()
         end
       elseif item.type == "touch" then
         local hit =
-            hitTest.find(
+            inputTarget.find(
               composition.layout,
               item.x,
               item.y,
@@ -643,7 +617,7 @@ local function processInput()
         end
       elseif item.type == "scroll" then
         local hit =
-            hitTest.find(
+            inputTarget.find(
               composition.layout,
               item.x,
               item.y,
@@ -675,9 +649,7 @@ local function processInput()
 end
 
 local function pullInput(timeout)
-  local signal = {
-    event.pull(timeout)
-  }
+  local signal = getPlatform().pull(timeout)
 
   if not signal[1] then
     return
@@ -700,7 +672,63 @@ function runtime.invalidateLayout()
   end
 end
 
-function runtime.App(content, render)
+local function validatePlatform(platform)
+  assert(
+    type(platform) == "table",
+    "Compose platform must be a table"
+  )
+
+  assert(
+    type(platform.now) == "function",
+    "Compose platform requires now()"
+  )
+
+  assert(
+    type(platform.pull) == "function",
+    "Compose platform requires pull()"
+  )
+
+  assert(
+    type(platform.isLocalInput) == "function",
+    "Compose platform requires isLocalInput()"
+  )
+end
+
+local function cleanupComposition()
+  if composition then
+    disposeScope(composition.root)
+  end
+
+  input.clear()
+  currentScope = nil
+  composition = nil
+end
+
+function runtime.App(content, render, options)
+  assert(
+    type(content) == "function",
+    "Compose content must be a function"
+  )
+
+  assert(
+    type(render) == "function",
+    "Compose render must be a function"
+  )
+
+  local previousPlatform = activePlatform
+  local platform = options and options.platform
+
+  if not platform then
+    if not defaultPlatform then
+      defaultPlatform = require("../lib/compose/host").create()
+    end
+
+    platform = defaultPlatform
+  end
+
+  validatePlatform(platform)
+  activePlatform = platform
+
   composition = {
     effects = {},
     dirty = true,
@@ -718,50 +746,53 @@ function runtime.App(content, render)
 
   input.clear()
 
-  while composition.running do
-    runEffects()
-    processInput()
+  local ok, err = pcall(function()
+    while composition.running do
+      runEffects()
+      processInput()
 
-    if composition.dirty then
-      composition.dirty =
-          false
+      if composition.dirty then
+        composition.dirty =
+            false
 
-      composition.tree =
-          composeRoot(
-            content
-          )
+        composition.tree =
+            composeRoot(
+              content
+            )
 
-      composition.layoutDirty =
-          true
-    end
+        composition.layoutDirty =
+            true
+      end
 
-    if composition.layoutDirty then
-      composition.layoutDirty =
-          false
+      if composition.layoutDirty then
+        composition.layoutDirty =
+            false
 
-      composition.layout =
-          render(
-            composition.tree
-          )
-    end
+        composition.layout =
+            render(
+              composition.tree
+            )
+      end
 
-    if not composition.running then
-      break
-    end
+      if not composition.running then
+        break
+      end
 
-    pullInput(
-      math.min(
-        nextWake(),
-        0.1
+      pullInput(
+        math.min(
+          nextWake(),
+          0.1
+        )
       )
-    )
+    end
+  end)
+
+  cleanupComposition()
+  activePlatform = previousPlatform
+
+  if not ok then
+    error(err, 0)
   end
-
-  currentScope =
-      nil
-
-  composition =
-      nil
 end
 
 return runtime

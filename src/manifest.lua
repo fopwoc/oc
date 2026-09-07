@@ -3,6 +3,7 @@ return {
     files = {
       "lib/compose/nodes.lua",
       "lib/compose/runtime.lua",
+      "lib/compose/host.lua",
       "lib/compose/renderer.lua",
       "lib/compose/framebuffer.lua",
       "lib/compose/init.lua",
@@ -10,7 +11,7 @@ return {
       "lib/compose/modifier.lua",
       "lib/compose/layout.lua",
       "lib/compose/input.lua",
-      "lib/compose/hit_test.lua",
+      "lib/compose/input_target.lua",
       "lib/compose/scroll.lua",
     },
   },
@@ -50,13 +51,13 @@ return {
     description = "Components showcase",
   },
 
-  test_unicode = {
-    files = {
-      "test/unicode.lua",
+    test_unicode = {
+      files = {
+        "test/unicode.lua",
     },
     run = "test/unicode.lua",
-    description = "unicode test",
-  },
+      description = "unicode test",
+    },
 
   telemetry_protocol = {
     files = {

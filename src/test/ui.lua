@@ -7,7 +7,7 @@ package.loaded["../lib/compose/debug"] = nil
 package.loaded["../lib/compose/modifier"] = nil
 package.loaded["../lib/compose/layout"] = nil
 package.loaded["../lib/compose/input"] = nil
-package.loaded["../lib/compose/hit_test"] = nil
+package.loaded["../lib/compose/input_target"] = nil
 package.loaded["../lib/compose/scroll"] = nil
 
 local compose = require("../lib/compose/init")
