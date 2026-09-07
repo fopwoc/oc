@@ -1,3 +1,5 @@
+package.path = "src/?.lua;" .. package.path
+
 local runtime = require("lib.compose.runtime")
 
 local pullCount = 0
@@ -52,14 +54,7 @@ runtime.App(
   }
 )
 
-assert(
-  renderCount == 2,
-  "state update should trigger exactly one recomposition"
-)
-
-assert(
-  renderedValue == 1,
-  "recomposition should observe the updated state"
-)
+assert(renderCount == 2)
+assert(renderedValue == 1)
 
 print("compose engine: OK")

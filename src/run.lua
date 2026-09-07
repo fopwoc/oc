@@ -115,9 +115,10 @@ else
 end
 
 local function help()
-  print("Usage: run <name> [args...]")
+  print("Usage: run <target> [args...]")
+  print("       run --help")
   print()
-  print("Available:")
+  print("Installed targets:")
 
   local names = {}
 

@@ -18,6 +18,22 @@ return {
     },
   },
 
+  test_suite = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "test/suite.lua",
+      "test/engine.lua",
+      "test/color.lua",
+      "test/navigation_engine.lua",
+      "test/lifecycle.lua",
+      "test/renderer.lua",
+    },
+    run = "test/suite.lua",
+    description = "Compose engine regression tests",
+  },
+
   compose_components = {
     depends = {
       "compose",

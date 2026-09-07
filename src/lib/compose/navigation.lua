@@ -224,7 +224,10 @@ function navigation.display(
               provider,
               entry
             )
-          end
+          end,
+          {
+            active = entry == current,
+          }
         )
 
     assert(

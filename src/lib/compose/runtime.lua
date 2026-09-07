@@ -40,6 +40,7 @@ local function createScope(key, parent)
     dirty = true,
     hasDirtyDescendant = false,
     generation = 0,
+    active = true,
 
     node = nil,
   }
@@ -95,31 +96,68 @@ local function cancelEffect(effect)
   end
 end
 
+local function disposeSlot(value)
+  if not value then
+    return nil
+  end
+
+  if value.kind == "effect" then
+    cancelEffect(value)
+    return nil
+  end
+
+  if value.kind == "disposable" and value.cleanup then
+    local cleanup = value.cleanup
+    value.cleanup = nil
+
+    local ok, err = pcall(cleanup)
+    if not ok then
+      return err
+    end
+  end
+
+  return nil
+end
+
 
 local function disposeScope(scope)
+  local firstError = nil
+
   removeDependencies(scope)
 
   for _, value in pairs(scope.slots) do
-    cancelEffect(value)
+    local err = disposeSlot(value)
+    if err and not firstError then
+      firstError = err
+    end
   end
 
   for _, childScope in pairs(scope.scopes) do
-    disposeScope(childScope)
+    local err = disposeScope(childScope)
+    if err and not firstError then
+      firstError = err
+    end
   end
 
   scope.slots = {}
   scope.scopes = {}
   scope.node = nil
+
+  return firstError
 end
 
 
 local function finishScope(scope)
   for index, value in pairs(scope.slots) do
     if
-        type(index) == "number"
+      type(index) == "number"
         and index > scope.slot
     then
-      cancelEffect(value)
+      local err = disposeSlot(value)
+      if err then
+        error(err, 0)
+      end
+
       scope.slots[index] = nil
     end
   end
@@ -258,6 +296,7 @@ function runtime.LaunchedEffect(key, block)
 
     wakeAt = 0,
     waitingEvent = nil,
+    scope = currentScope,
 
     cancelled = false,
   }
@@ -271,7 +310,66 @@ function runtime.LaunchedEffect(key, block)
   )
 end
 
-function runtime.RecomposeScope(key, content)
+function runtime.DisposableEffect(key, setup)
+  assert(
+    currentScope,
+    "DisposableEffect() outside composition"
+  )
+
+  assert(
+    type(setup) == "function",
+    "DisposableEffect() requires a setup function"
+  )
+
+  currentScope.slot = currentScope.slot + 1
+
+  local index = currentScope.slot
+  local old = currentScope.slots[index]
+
+  if
+      old
+      and old.kind == "disposable"
+      and old.key == key
+  then
+    return
+  end
+
+  if old then
+    local err = disposeSlot(old)
+    if err then
+      error(err, 0)
+    end
+  end
+
+  local cleanup = setup()
+
+  if cleanup ~= nil then
+    assert(
+      type(cleanup) == "function",
+      "DisposableEffect setup must return a cleanup function or nil"
+    )
+  end
+
+  currentScope.slots[index] = {
+    kind = "disposable",
+    key = key,
+    cleanup = cleanup,
+  }
+end
+
+local function isScopeActive(scope)
+  while scope do
+    if scope.active == false then
+      return false
+    end
+
+    scope = scope.parent
+  end
+
+  return true
+end
+
+function runtime.RecomposeScope(key, content, options)
   assert(
     currentScope,
     "RecomposeScope() outside composition"
@@ -302,6 +400,8 @@ function runtime.RecomposeScope(key, content)
     parent.scopes[key] =
         scope
   end
+
+  scope.active = not options or options.active ~= false
 
   local recomposing =
       scope.dirty
@@ -479,6 +579,10 @@ local function runEffects()
         index
       )
     elseif
+        not isScopeActive(effect.scope)
+    then
+      index = index + 1
+    elseif
         not effect.waitingEvent
         and effect.wakeAt <= currentTime
     then
@@ -520,6 +624,7 @@ local function dispatchEvent(signal)
   ) do
     if
         not effect.cancelled
+        and isScopeActive(effect.scope)
         and effect.waitingEvent
         == name
         and coroutine.status(
@@ -543,6 +648,7 @@ local function nextWake()
   ) do
     if
         not effect.cancelled
+        and isScopeActive(effect.scope)
         and not effect.waitingEvent
         and coroutine.status(
           effect.thread
@@ -701,13 +807,17 @@ local function validatePlatform(platform)
 end
 
 local function cleanupComposition()
+  local firstError = nil
+
   if composition then
-    disposeScope(composition.root)
+    firstError = disposeScope(composition.root)
   end
 
   input.clear()
   currentScope = nil
   composition = nil
+
+  return firstError
 end
 
 function runtime.App(content, render, options)
@@ -793,11 +903,15 @@ function runtime.App(content, render, options)
     end
   end)
 
-  cleanupComposition()
+  local cleanupOk, cleanupError = pcall(cleanupComposition)
   activePlatform = previousPlatform
 
   if not ok then
     error(err, 0)
+  end
+
+  if not cleanupOk then
+    error(cleanupError, 0)
   end
 end
 

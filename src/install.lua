@@ -12,6 +12,29 @@ local SOURCE_FILE = filesystem.concat(ROOT, ".source")
 local INSTALLED_FILE = filesystem.concat(ROOT, ".installed.lua")
 local MANIFEST_FILE = filesystem.concat(ROOT, "manifest.lua")
 
+local function printHelp()
+  print("Usage: install [target|all]")
+  print("       install [target|all] --run")
+  print("       install --run <target>")
+  print("       install --list")
+  print("       install --dry-run [target]")
+  print("       install --url <url>")
+  print("       install --help")
+  print()
+  print("Commands:")
+  print("  <target>       Install a target and its dependencies")
+  print("  all            Install every manifest package")
+  print("  --list         Update and show the remote manifest")
+  print("  --dry-run      Show the remote install plan without changing files")
+  print("  --url <url>    Save a different package source")
+  print("  --run <target> Install, then execute ./run.lua <target>")
+end
+
+if args[1] == "--help" or args[1] == "-h" then
+  printHelp()
+  return
+end
+
 local function shellQuote(value)
   value = tostring(value)
 
@@ -474,8 +497,124 @@ local function install(source, installed)
   end
 end
 
+local function runInstalled(target)
+  assert(
+    type(target) == "string"
+      and target ~= ""
+      and target ~= "all",
+    "--run requires a runnable target"
+  )
+
+  local ok = shell.execute(
+    "./run.lua " .. shellQuote(target)
+  )
+
+  assert(
+    ok,
+    "Failed to run installed target: " .. target
+  )
+end
+
+local function selectInstalled(current, requested)
+  local result = {}
+
+  if requested == "all" then
+    return {"all"}
+  end
+
+  if requested then
+    if not contains(current, "all") then
+      for _, name in ipairs(current) do
+        result[#result + 1] = name
+      end
+    end
+
+    if not contains(result, requested) then
+      result[#result + 1] = requested
+    end
+
+    return result
+  end
+
+  for _, name in ipairs(current) do
+    result[#result + 1] = name
+  end
+
+  if #result == 0 then
+    return {"all"}
+  end
+
+  return result
+end
+
+local function printInstallPlan(source, installed)
+  local stage = createStage()
+
+  local ok, err = pcall(function()
+    local manifest = loadRemoteManifest(source, stage)
+    local resolved = resolvePackages(manifest, installed)
+    local files = {}
+
+    addFile(files, "manifest.lua")
+    addFile(files, "run.lua")
+    addFile(files, ".installed.lua")
+    addFile(files, ".source")
+
+    for name in pairs(resolved) do
+      for _, path in ipairs(manifest[name].files or {}) do
+        addFile(files, path)
+      end
+    end
+
+    print("Dry run; no files will be changed.")
+    print("Packages:")
+
+    local packages = {}
+    for name in pairs(resolved) do
+      packages[#packages + 1] = name
+    end
+    table.sort(packages)
+
+    for _, name in ipairs(packages) do
+      print("  " .. name)
+    end
+
+    print("Files:")
+    for _, path in ipairs(sortedFiles(files)) do
+      print("  " .. path)
+    end
+  end)
+
+  cleanupStage(stage)
+
+  if not ok then
+    error(err, 0)
+  end
+end
+
 local source = readSource()
 local installed = loadInstalled()
+
+local requestedTarget = args[1]
+local runAfterInstall = false
+
+if args[1] == "--run" then
+  runAfterInstall = true
+  requestedTarget = args[2]
+
+  assert(
+    requestedTarget
+      and not args[3],
+    "Usage: install --run <target>"
+  )
+elseif args[2] == "--run" then
+  runAfterInstall = true
+
+  assert(
+    not args[3],
+    "Usage: install <target> --run"
+  )
+end
 
 if args[1] == "--url" then
   assert(args[2], "Usage: install --url <url>")
@@ -551,19 +690,46 @@ if args[1] == "--list" then
   )
 end
 
-if args[1] == "all" then
-  installed = {"all"}
-elseif args[1] then
-  if contains(installed, "all") then
-    installed = {}
+local dryRun =
+    args[1] == "--dry-run"
+    or args[2] == "--dry-run"
+
+if dryRun then
+  assert(
+    not runAfterInstall,
+    "--dry-run cannot be combined with --run"
+  )
+
+  local dryRunTarget
+
+  if args[1] == "--dry-run" then
+    assert(
+      not args[3],
+      "Usage: install --dry-run [target]"
+    )
+
+    dryRunTarget = args[2]
+  else
+    assert(
+      not args[3],
+      "Usage: install <target> --dry-run"
+    )
+
+    dryRunTarget = args[1]
   end
 
-  if not contains(installed, args[1]) then
-    installed[#installed + 1] = args[1]
-  end
-elseif #installed == 0 then
-  installed = {"all"}
+  printInstallPlan(
+    source,
+    selectInstalled(installed, dryRunTarget)
+  )
+  return
 end
+
+installed = selectInstalled(installed, requestedTarget)
 
 install(source, installed)
 print("Done.")
+
+if runAfterInstall then
+  runInstalled(requestedTarget)
+end

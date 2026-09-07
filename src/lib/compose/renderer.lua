@@ -1,5 +1,4 @@
 local unicode = require("unicode")
-local component = require("component")
 
 local layout = require("lib.compose.layout")
 local framebuffer = require("lib.compose.framebuffer")
@@ -8,6 +7,10 @@ local debug = require("lib.compose.debug")
 local renderer = {}
 
 local previousFrame = nil
+
+local function defaultGpu()
+  return require("component").gpu
+end
 
 local function getStyle(node)
   local foreground =
@@ -734,9 +737,11 @@ local function drawNode(
       originalContentY
 end
 
-function renderer.render(tree)
+function renderer.render(tree, options)
   local gpu =
-      component.gpu
+      options
+      and options.gpu
+      or defaultGpu()
 
   local width,
   height =
@@ -777,11 +782,13 @@ function renderer.render(tree)
   return measured
 end
 
-function renderer.reset()
+function renderer.reset(options)
   previousFrame = nil
 
   local gpu =
-      component.gpu
+      options
+      and options.gpu
+      or defaultGpu()
 
   local width,
   height =

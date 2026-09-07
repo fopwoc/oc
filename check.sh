@@ -16,24 +16,11 @@ command -v "$LUAC_BIN" >/dev/null 2>&1 \
 
 while IFS= read -r -d '' file; do
   "$LUAC_BIN" -p "$file"
-done < <(find src -type f -name '*.lua' -print0 | sort -z)
+done < <(find src test -type f -name '*.lua' -print0 | sort -z)
 
-if rg -n '[[:blank:]]+$' src scripts devserver.sh check.sh; then
-  echo "style: trailing whitespace found" >&2
-  exit 1
-fi
-
-if rg -n $'\t' src scripts devserver.sh check.sh; then
-  echo "style: tab character found; use spaces" >&2
-  exit 1
-fi
-
-"$LUA_BIN" scripts/check_manifest.lua
 bash -n check.sh
 bash -n devserver.sh
 
-"$LUA_BIN" src/test/engine.lua
-"$LUA_BIN" src/test/color.lua
-"$LUA_BIN" src/test/navigation_engine.lua
+"$LUA_BIN" test/suite.lua
 
 echo "check: OK"

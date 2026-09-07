@@ -1,33 +1,3 @@
-package.path = "src/?.lua;" .. package.path
-
-package.preload["unicode"] = function()
-  return {
-    len = function(value)
-      return #value
-    end,
-
-    wlen = function(value)
-      return #value
-    end,
-
-    sub = string.sub,
-
-    charWidth = function()
-      return 1
-    end,
-  }
-end
-
-local nativeRequire = require
-
-require = function(name)
-  if name:sub(1, 3) == "../" then
-    name = name:sub(4)
-  end
-
-  return nativeRequire(name:gsub("/", "."))
-end
-
 local color = require("lib.compose.color")
 local framebuffer = require("lib.compose.framebuffer")
 

@@ -1,15 +1,3 @@
-package.path = "src/?.lua;" .. package.path
-
-local nativeRequire = require
-
-require = function(name)
-  if name:sub(1, 3) == "../" then
-    name = name:sub(4)
-  end
-
-  return nativeRequire(name:gsub("/", "."))
-end
-
 local navigation =
     require("lib.compose.navigation")
 

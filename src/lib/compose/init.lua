@@ -12,6 +12,7 @@ local compose = {}
 
 compose.remember = runtime.remember
 compose.LaunchedEffect = runtime.LaunchedEffect
+compose.DisposableEffect = runtime.DisposableEffect
 compose.RecomposeScope = runtime.RecomposeScope
 compose.delay = runtime.delay
 compose.awaitEvent = runtime.awaitEvent
@@ -68,11 +69,19 @@ compose.NavDisplay = navigation.display
 -- Application
 
 function compose.App(content, options)
-  renderer.reset()
+  local rendererOptions =
+      options and options.renderer
+
+  renderer.reset(rendererOptions)
 
   runtime.App(
     content,
-    renderer.render,
+    function(tree)
+      return renderer.render(
+        tree,
+        rendererOptions
+      )
+    end,
     options
   )
 end

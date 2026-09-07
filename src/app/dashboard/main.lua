@@ -36,9 +36,6 @@ local dashboard =
     stateModule.create()
 
 
-receiver:open()
-
-
 local function sourceStatus(source)
   local age =
       dashboard:age(source)
@@ -418,6 +415,17 @@ end
 compose.App(function()
   local revision =
       compose.remember(0)
+
+  compose.DisposableEffect(
+    "telemetry-port",
+    function()
+      receiver:open()
+
+      return function()
+        receiver:close()
+      end
+    end
+  )
 
 
   compose.LaunchedEffect(
