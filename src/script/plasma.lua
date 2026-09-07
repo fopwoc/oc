@@ -8,7 +8,7 @@ local event =
     require("event")
 
 local framebuffer =
-    require("../lib/compose/framebuffer")
+    require("lib.compose.framebuffer")
 
 
 local gpu =

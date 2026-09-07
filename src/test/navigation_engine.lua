@@ -11,13 +11,13 @@ require = function(name)
 end
 
 local navigation =
-    require("../lib/compose/navigation")
+    require("lib.compose.navigation")
 
 local nodes =
-    require("../lib/compose/nodes")
+    require("lib.compose.nodes")
 
 local runtime =
-    require("../lib/compose/runtime")
+    require("lib.compose.runtime")
 
 local changes = 0
 

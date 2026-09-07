@@ -1,10 +1,10 @@
-local compose = require("../lib/compose/init")
+local compose = require("lib.compose.init")
 
-local components = require("../lib/components/init")
+local components = require("lib.components.init")
 
-local telemetry = require("../lib/telemetry/receiver")
+local telemetry = require("lib.telemetry.receiver")
 
-local stateModule = require("../app/dashboard/state")
+local stateModule = require("app.dashboard.state")
 
 
 local colors = {

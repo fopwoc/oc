@@ -1,5 +1,5 @@
 local modifier = {}
-local color = require("../lib/compose/color")
+local color = require("lib.compose.color")
 
 local Modifier = {}
 Modifier.__index = Modifier

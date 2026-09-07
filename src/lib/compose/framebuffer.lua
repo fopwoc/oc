@@ -1,5 +1,5 @@
 local unicode = require("unicode")
-local color = require("../lib/compose/color")
+local color = require("lib.compose.color")
 
 local framebuffer = {}
 

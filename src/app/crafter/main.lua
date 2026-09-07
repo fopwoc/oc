@@ -5,16 +5,16 @@ local shell =
     require("shell")
 
 local compose =
-    require("../lib/compose/init")
+    require("lib.compose.init")
 
 local components =
-    require("../lib/components/init")
+    require("lib.components.init")
 
 local schedulerModule =
-    require("../app/crafter/scheduler")
+    require("app.crafter.scheduler")
 
 local telemetry =
-    require("../lib/telemetry/sender")
+    require("lib.telemetry.sender")
 
 
 local CONFIG_PATH =

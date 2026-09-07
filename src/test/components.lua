@@ -1,5 +1,5 @@
-local compose = require("../lib/compose/init")
-local components = require("../lib/components/init")
+local compose = require("lib.compose.init")
+local components = require("lib.components.init")
 
 compose.App(function()
   local scrollState =

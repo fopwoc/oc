@@ -3,6 +3,12 @@ local filesystem = require("filesystem")
 
 local ROOT = shell.getWorkingDirectory()
 
+package.path = table.concat({
+    filesystem.concat(ROOT, "?.lua"),
+    filesystem.concat(ROOT, "?/init.lua"),
+    package.path,
+  }, ";")
+
 local function matchesModulePrefix(
     moduleName,
     prefix

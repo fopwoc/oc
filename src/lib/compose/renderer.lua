@@ -1,9 +1,9 @@
 local unicode = require("unicode")
 local component = require("component")
 
-local layout = require("../lib/compose/layout")
-local framebuffer = require("../lib/compose/framebuffer")
-local debug = require("../lib/compose/debug")
+local layout = require("lib.compose.layout")
+local framebuffer = require("lib.compose.framebuffer")
+local debug = require("lib.compose.debug")
 
 local renderer = {}
 

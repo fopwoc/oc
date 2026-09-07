@@ -10,7 +10,7 @@ require = function(name)
   return nativeRequire(name:gsub("/", "."))
 end
 
-local runtime = require("../lib/compose/runtime")
+local runtime = require("lib.compose.runtime")
 
 local pullCount = 0
 local renderCount = 0

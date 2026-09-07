@@ -28,8 +28,8 @@ require = function(name)
   return nativeRequire(name:gsub("/", "."))
 end
 
-local color = require("lib/compose/color")
-local framebuffer = require("lib/compose/framebuffer")
+local color = require("lib.compose.color")
+local framebuffer = require("lib.compose.framebuffer")
 
 local function assertEqual(actual, expected, message)
   assert(

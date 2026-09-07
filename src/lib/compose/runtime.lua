@@ -1,5 +1,5 @@
-local input = require("../lib/compose/input")
-local inputTarget = require("../lib/compose/input_target")
+local input = require("lib.compose.input")
+local inputTarget = require("lib.compose.input_target")
 
 local runtime = {}
 
@@ -14,7 +14,7 @@ local function getPlatform()
   end
 
   if not defaultPlatform then
-    defaultPlatform = require("../lib/compose/host").create()
+    defaultPlatform = require("lib.compose.host").create()
   end
 
   return defaultPlatform
@@ -726,7 +726,7 @@ function runtime.App(content, render, options)
 
   if not platform then
     if not defaultPlatform then
-      defaultPlatform = require("../lib/compose/host").create()
+      defaultPlatform = require("lib.compose.host").create()
     end
 
     platform = defaultPlatform

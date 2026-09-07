@@ -2,7 +2,7 @@ local component =
     require("component")
 
 local protocol =
-    require("../lib/telemetry/protocol")
+    require("lib.telemetry.protocol")
 
 local receiver = {}
 

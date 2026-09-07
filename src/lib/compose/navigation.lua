@@ -1,6 +1,6 @@
-local runtime = require("../lib/compose/runtime")
-local nodes = require("../lib/compose/nodes")
-local modifier = require("../lib/compose/modifier")
+local runtime = require("lib.compose.runtime")
+local nodes = require("lib.compose.nodes")
+local modifier = require("lib.compose.modifier")
 
 local navigation = {}
 

@@ -1,10 +1,10 @@
-local runtime = require("../lib/compose/runtime")
-local nodes = require("../lib/compose/nodes")
-local renderer = require("../lib/compose/renderer")
-local modifier = require("../lib/compose/modifier")
-local color = require("../lib/compose/color")
-local scroll = require("../lib/compose/scroll")
-local navigation = require("../lib/compose/navigation")
+local runtime = require("lib.compose.runtime")
+local nodes = require("lib.compose.nodes")
+local renderer = require("lib.compose.renderer")
+local modifier = require("lib.compose.modifier")
+local color = require("lib.compose.color")
+local scroll = require("lib.compose.scroll")
+local navigation = require("lib.compose.navigation")
 
 local compose = {}
 

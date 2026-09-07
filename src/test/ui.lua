@@ -1,4 +1,4 @@
-local compose = require("../lib/compose/init")
+local compose = require("lib.compose.init")
 
 compose.App(function()
   local progress = compose.remember(0)

@@ -1,9 +1,9 @@
 local components = {}
 
-local card = require("../lib/components/card")
-local button = require("../lib/components/button")
-local toggle = require("../lib/components/toggle")
-local dialog = require("../lib/components/dialog")
+local card = require("lib.components.card")
+local button = require("lib.components.button")
+local toggle = require("lib.components.toggle")
+local dialog = require("lib.components.dialog")
 
 components.Card =
     card.Card

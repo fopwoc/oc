@@ -5,7 +5,7 @@ local computer =
     require("computer")
 
 local protocol =
-    require("../lib/telemetry/protocol")
+    require("lib.telemetry.protocol")
 
 local sender = {}
 

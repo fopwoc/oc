@@ -1,5 +1,5 @@
-local compose = require("../lib/compose/init")
-local card = require("../lib/components/card")
+local compose = require("lib.compose.init")
+local card = require("lib.components.card")
 
 local dialog = {}
 
