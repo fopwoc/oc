@@ -1,0 +1,486 @@
+local unicode = require("unicode")
+
+local framebuffer = {}
+
+local DEFAULT_FOREGROUND = 0xFFFFFF
+local DEFAULT_BACKGROUND = 0x000000
+
+local CONTINUATION = false
+
+local function index(width, x, y)
+  return (y - 1) * width + x
+end
+
+function framebuffer.create(width, height)
+  return {
+    width = width,
+    height = height,
+
+    chars = {},
+    foreground = {},
+    background = {},
+
+    foregroundColor = DEFAULT_FOREGROUND,
+    backgroundColor = DEFAULT_BACKGROUND,
+  }
+end
+
+function framebuffer.clear(frame)
+  frame.chars = {}
+  frame.foreground = {}
+  frame.background = {}
+end
+
+function framebuffer.setForeground(frame, color)
+  frame.foregroundColor = color
+end
+
+function framebuffer.setBackground(frame, color)
+  frame.backgroundColor = color
+end
+
+local function setCell(
+  frame,
+  x,
+  y,
+  char,
+  foreground,
+  background
+)
+  local i = index(
+    frame.width,
+    x,
+    y
+  )
+
+  frame.chars[i] = char
+  frame.foreground[i] = foreground
+  frame.background[i] = background
+end
+
+local function writeChar(
+  frame,
+  x,
+  y,
+  char,
+  preserveBackground
+)
+  local width =
+    unicode.charWidth(char)
+
+  if width < 1 then
+    return 0
+  end
+
+  if x < 1 then
+    return width
+  end
+
+  if
+    x > frame.width
+    or x + width - 1 > frame.width
+  then
+    return width
+  end
+
+  local foreground =
+    frame.foregroundColor
+
+  local background
+
+  if preserveBackground then
+    local i =
+      index(
+        frame.width,
+        x,
+        y
+      )
+
+    background =
+      frame.background[i]
+        or DEFAULT_BACKGROUND
+  else
+    background =
+      frame.backgroundColor
+  end
+
+  setCell(
+    frame,
+    x,
+    y,
+    char,
+    foreground,
+    background
+  )
+
+  if width == 2 then
+    setCell(
+      frame,
+      x + 1,
+      y,
+      CONTINUATION,
+      foreground,
+      background
+    )
+  end
+
+  return width
+end
+
+function framebuffer.set(frame, x, y, char)
+  if
+    x < 1
+    or x > frame.width
+    or y < 1
+    or y > frame.height
+  then
+    return
+  end
+
+  if
+    not char
+    or char == ""
+  then
+    return
+  end
+
+  char =
+    unicode.sub(
+      tostring(char),
+      1,
+      1
+    )
+
+  writeChar(
+    frame,
+    x,
+    y,
+    char,
+    false
+  )
+end
+
+local function write(
+  frame,
+  x,
+  y,
+  text,
+  preserveBackground
+)
+  if
+    y < 1
+    or y > frame.height
+  then
+    return
+  end
+
+  text =
+    tostring(text)
+
+  local length =
+    unicode.len(text)
+
+  local px = x
+
+  for i = 1, length do
+    local char =
+      unicode.sub(
+        text,
+        i,
+        i
+      )
+
+    local width =
+      unicode.charWidth(char)
+
+    if px > frame.width then
+      break
+    end
+
+    if px >= 1 then
+      writeChar(
+        frame,
+        px,
+        y,
+        char,
+        preserveBackground
+      )
+    end
+
+    px =
+      px + width
+  end
+end
+
+function framebuffer.write(
+  frame,
+  x,
+  y,
+  text
+)
+  write(
+    frame,
+    x,
+    y,
+    text,
+    false
+  )
+end
+
+function framebuffer.writeForeground(
+  frame,
+  x,
+  y,
+  text
+)
+  write(
+    frame,
+    x,
+    y,
+    text,
+    true
+  )
+end
+
+local function getCell(frame, i)
+  if not frame then
+    return
+      " ",
+      DEFAULT_FOREGROUND,
+      DEFAULT_BACKGROUND
+  end
+
+  local char =
+    frame.chars[i]
+
+  if char == nil then
+    char = " "
+  end
+
+  return
+    char,
+    frame.foreground[i]
+      or DEFAULT_FOREGROUND,
+    frame.background[i]
+      or DEFAULT_BACKGROUND
+end
+
+local function cellsEqual(
+  current,
+  previous,
+  i
+)
+  local char,
+    foreground,
+    background =
+    getCell(current, i)
+
+  local previousChar,
+    previousForeground,
+    previousBackground =
+    getCell(previous, i)
+
+  return
+    char == previousChar
+    and foreground == previousForeground
+    and background == previousBackground
+end
+
+local function isContinuation(
+  frame,
+  width,
+  x,
+  y
+)
+  if not frame then
+    return false
+  end
+
+  return
+    frame.chars[
+      index(width, x, y)
+    ] == CONTINUATION
+end
+
+function framebuffer.present(
+  gpu,
+  current,
+  previous
+)
+  local width =
+    current.width
+
+  local height =
+    current.height
+
+  local activeForeground = nil
+  local activeBackground = nil
+
+  for y = 1, height do
+    local changed = {}
+
+    for x = 1, width do
+      local i =
+        index(
+          width,
+          x,
+          y
+        )
+
+      if not cellsEqual(
+        current,
+        previous,
+        i
+      ) then
+        changed[x] = true
+
+        -- Если изменилась continuation-cell,
+        -- перерисовываем и начало wide-глифа.
+        if
+          x > 1
+          and (
+            isContinuation(
+              current,
+              width,
+              x,
+              y
+            )
+            or isContinuation(
+              previous,
+              width,
+              x,
+              y
+            )
+          )
+        then
+          changed[x - 1] = true
+        end
+
+        -- Если lead wide-глифа изменился,
+        -- его вторая клетка тоже логически
+        -- относится к этому изменению.
+        if
+          x < width
+          and (
+            isContinuation(
+              current,
+              width,
+              x + 1,
+              y
+            )
+            or isContinuation(
+              previous,
+              width,
+              x + 1,
+              y
+            )
+          )
+        then
+          changed[x + 1] = true
+        end
+      end
+    end
+
+    local x = 1
+
+    while x <= width do
+      if not changed[x] then
+        x = x + 1
+      else
+        local char,
+          foreground,
+          background =
+          getCell(
+            current,
+            index(
+              width,
+              x,
+              y
+            )
+          )
+
+        -- changed span никогда не должен
+        -- реально стартовать внутри wide-char.
+        if char == CONTINUATION then
+          x = x + 1
+        else
+          local runStart = x
+          local run = {}
+
+          while x <= width do
+            local i =
+              index(
+                width,
+                x,
+                y
+              )
+
+            local runChar,
+              runForeground,
+              runBackground =
+              getCell(
+                current,
+                i
+              )
+
+            if not changed[x] then
+              break
+            end
+
+            if runChar == CONTINUATION then
+              x = x + 1
+            elseif
+              runForeground ~= foreground
+              or runBackground ~= background
+            then
+              break
+            else
+              run[#run + 1] =
+                runChar
+
+              x =
+                x
+                + unicode.charWidth(
+                  runChar
+                )
+            end
+          end
+
+          if #run > 0 then
+            if
+              activeForeground
+                ~= foreground
+            then
+              gpu.setForeground(
+                foreground
+              )
+
+              activeForeground =
+                foreground
+            end
+
+            if
+              activeBackground
+                ~= background
+            then
+              gpu.setBackground(
+                background
+              )
+
+              activeBackground =
+                background
+            end
+
+            gpu.set(
+              runStart,
+              y,
+              table.concat(run)
+            )
+          end
+        end
+      end
+    end
+  end
+end
+
+return framebuffer
