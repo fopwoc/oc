@@ -148,6 +148,14 @@ function Modifier:foreground(color)
   })
 end
 
+function Modifier:autoContrast(value)
+  return append(self, {
+    phase = "draw",
+    type = "autoContrast",
+    value = value ~= false,
+  })
+end
+
 function Modifier:visible(value)
   return append(self, {
     phase = "visibility",

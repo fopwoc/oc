@@ -11,6 +11,9 @@ local grid = require("lib.components.grid")
 local entrypoint = require("lib.components.entrypoint")
 local accordion = require("lib.components.accordion")
 local bufferView = require("lib.components.buffer_view")
+local progress = require("lib.components.progress")
+local barChart = require("lib.components.bar_chart")
+local areaChart = require("lib.components.area_chart")
 
 components.Card =
     card.Card
@@ -47,5 +50,14 @@ components.Accordion =
 
 components.BufferView =
     bufferView.BufferView
+
+components.Progress =
+    progress.Progress
+
+components.BarChart =
+    barChart.BarChart
+
+components.AreaChart =
+    areaChart.AreaChart
 
 return components

@@ -33,7 +33,6 @@ compose.Column = nodes.Column
 compose.Row = nodes.Row
 compose.Spacer = nodes.Spacer
 compose.Box = nodes.Box
-compose.Progress = nodes.Progress
 
 compose.Color = color.create
 

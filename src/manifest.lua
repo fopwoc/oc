@@ -55,6 +55,9 @@ return {
       "lib/components/entrypoint.lua",
       "lib/components/accordion.lua",
       "lib/components/buffer_view.lua",
+      "lib/components/progress.lua",
+      "lib/components/bar_chart.lua",
+      "lib/components/area_chart.lua",
     },
   },
 

@@ -22,6 +22,7 @@ function framebuffer.create(width, height)
     background = {},
 
     foregroundColor = DEFAULT_FOREGROUND,
+    foregroundAutoContrast = false,
     backgroundColor = DEFAULT_BACKGROUND,
   }
 end
@@ -34,6 +35,10 @@ end
 
 function framebuffer.setForeground(frame, color)
   frame.foregroundColor = color
+end
+
+function framebuffer.setForegroundAutoContrast(frame, value)
+  frame.foregroundAutoContrast = value == true
 end
 
 function framebuffer.setBackground(frame, color)
@@ -107,11 +112,21 @@ local function writeChar(
         )
   end
 
-  local foreground =
-      color.blend(
-        frame.foregroundColor,
-        background
-      )
+  local foreground
+
+  if frame.foregroundAutoContrast then
+    foreground =
+        color.contrast(
+          frame.foregroundColor,
+          background
+        )
+  else
+    foreground =
+        color.blend(
+          frame.foregroundColor,
+          background
+        )
+  end
 
   setCell(
     frame,

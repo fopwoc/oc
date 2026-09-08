@@ -227,30 +227,6 @@ local function measureText(node, constraints)
       {}
 end
 
-local function measureProgress(node, constraints)
-  local width
-
-  if constraints.maxWidth == math.huge then
-    width = 10
-  else
-    width = constraints.maxWidth
-  end
-
-  width = clamp(
-    width,
-    constraints.minWidth,
-    constraints.maxWidth
-  )
-
-  local height = clamp(
-    1,
-    constraints.minHeight,
-    constraints.maxHeight
-  )
-
-  return width, height, {}
-end
-
 local function measureColumn(
     node,
     constraints
@@ -839,9 +815,6 @@ measureNode = function(node, constraints)
   if node.type == "text" then
     width, height, children =
         measureText(node, innerConstraints)
-  elseif node.type == "progress" then
-    width, height, children =
-        measureProgress(node, innerConstraints)
   elseif node.type == "column" then
     width, height, children =
         measureColumn(node, innerConstraints)

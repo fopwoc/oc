@@ -32,6 +32,18 @@ assertEqual(
 )
 
 assertEqual(
+  color.invert(0xFFFFFF),
+  0x000000,
+  "inverted white"
+)
+
+assertEqual(
+  color.contrast(0xFFFFFF, 0xFFFFFF),
+  0x000000,
+  "contrast chooses dark text on light background"
+)
+
+assertEqual(
   color.blend(
     color.create(0x0000FF, 0.5),
     0x000000

@@ -69,6 +69,60 @@ local function pack(red, green, blue)
     + blue
 end
 
+local function luminance(rgb)
+  return
+      channel(rgb, 16) * 299
+      + channel(rgb, 8) * 587
+      + channel(rgb, 0) * 114
+end
+
+function color.invert(value)
+  local rgb =
+      color.resolve(value)
+
+  return pack(
+    0xFF - channel(rgb, 16),
+    0xFF - channel(rgb, 8),
+    0xFF - channel(rgb, 0)
+  )
+end
+
+function color.contrast(foreground, background)
+  local backgroundRgb =
+      color.blend(background, 0x000000)
+
+  local resolvedForeground =
+      color.blend(foreground, backgroundRgb)
+
+  local preferredDistance =
+      math.abs(
+        luminance(resolvedForeground)
+        - luminance(backgroundRgb)
+      )
+
+  if preferredDistance >= 96000 then
+    return resolvedForeground
+  end
+
+  local inverted =
+      color.invert(resolvedForeground)
+
+  local invertedDistance =
+      math.abs(
+        luminance(inverted)
+        - luminance(backgroundRgb)
+      )
+
+  if invertedDistance > preferredDistance then
+    return inverted
+  end
+
+  return
+      luminance(backgroundRgb) > 128000
+      and 0x000000
+      or 0xFFFFFF
+end
+
 function color.blend(source, destination)
   local sourceRgb, alpha = color.resolve(source)
 

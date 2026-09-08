@@ -97,17 +97,13 @@ compose.App(function()
               compose.Text("STATE / EFFECT"),
 
               compose.Text(
-                "Progress: "
+                "Random value: "
                 .. math.floor(
                   progress.value * 100
                 )
                 .. "%"
               ),
 
-              compose.Progress(
-                progress.value,
-                compose.Modifier:fillMaxWidth()
-              ),
             },
             compose.Modifier
             :weight(1)
@@ -479,6 +475,45 @@ compose.App(function()
                       :width(15)
                       :height(3)
                       :background(0x003366)
+                    ),
+                  }),
+                compose.Spacer(compose.Modifier:width(4)),
+
+                compose.Column({
+                    compose.Text("CONTRAST"),
+
+                    compose.Box({
+                        compose.Row({
+                            compose.Box({},
+                              compose.Modifier
+                              :weight(1)
+                              :fillMaxHeight()
+                              :background(0x000000)
+                            ),
+
+                            compose.Box({},
+                              compose.Modifier
+                              :weight(1)
+                              :fillMaxHeight()
+                              :background(0xFFFFFF)
+                            ),
+                          },
+                          compose.Modifier
+                          :fillMaxWidth()
+                          :fillMaxHeight()
+                        ),
+
+                        compose.Text(
+                          "CONTRAST",
+                          compose.Modifier
+                          :align("center", "center")
+                          :foreground(0xFFFFFF)
+                          :autoContrast()
+                        ),
+                      },
+                      compose.Modifier
+                      :width(18)
+                      :height(3)
                     ),
                   }),
               },

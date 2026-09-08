@@ -123,11 +123,11 @@ For each cell, the framebuffer blends the source color over the color already pr
 result = source * alpha + destination * (1 - alpha)
 ```
 
-Foreground and background colors are stored independently, so a transparent text color can mix with the existing foreground while a background surface mixes with the existing background. The final framebuffer contains only resolved RGB values. Alpha is not sent to the GPU because there is no second GPU-side blending stage to rely on.
+Foreground and background colors are stored independently, but transparent text is resolved against the cell background so translucent glyphs can reveal the solid surface behind them. The final framebuffer contains only resolved RGB values. Alpha is not sent to the GPU because there is no second GPU-side blending stage to rely on.
 
 Opaque and fully transparent colors have explicit fast paths. An opaque color replaces the destination without per-channel arithmetic, and a transparent color leaves the destination unchanged. This keeps the common case—the large number of ordinary opaque TUI cells—cheap while still allowing semi-transparent surfaces where they provide real value.
 
-Scrims use the same mechanism. A dialog applies a transparent tint to both foreground and background across its clipped bounds, so the content underneath remains visually present but subdued. Multiple translucent layers are resolved in framebuffer order, which makes overlapping surfaces behave predictably without requiring special dialog or overlay rendering code.
+Scrims use the same mechanism. A dialog applies a transparent tint to both foreground and background across its clipped bounds, so the content underneath remains visually present but subdued. Multiple translucent layers are resolved in framebuffer order, which makes overlapping surfaces behave predictably without requiring special dialog or overlay rendering code. Text that spans mixed surfaces can opt into automatic contrast; the renderer evaluates the background under each cell and keeps the requested foreground when it is readable, otherwise selecting its negative or a black/white fallback.
 
 Color resolution happens before frame diffing. If a translucent layer does not change the resolved RGB result, it produces no GPU write; if it does change the result, the normal changed-cell and horizontal-run batching applies. Alpha support therefore integrates with the same performance model as opaque drawing instead of creating a separate expensive presentation path.
 

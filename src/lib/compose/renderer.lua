@@ -115,6 +115,25 @@ local function getScrim(node)
   return nil
 end
 
+local function getAutoContrast(node)
+  if not node.modifier then
+    return false
+  end
+
+  for _, element in ipairs(
+    node.modifier.elements or {}
+  ) do
+    if
+        element.phase == "draw"
+        and element.type == "autoContrast"
+    then
+      return element.value
+    end
+  end
+
+  return false
+end
+
 local function getBorder(node)
   if not node.modifier then
     return nil
@@ -504,86 +523,6 @@ local function drawText(
   end
 end
 
-local function drawProgress(
-    frame,
-    measured,
-    node,
-    clip,
-    background
-)
-  local width =
-      measured.contentWidth
-
-  local value =
-      node.props.value or 0
-
-  local filled =
-      math.floor(
-        width * value
-      )
-
-  local text =
-      string.rep("#", filled)
-      .. string.rep(
-        "-",
-        width - filled
-      )
-
-  local y =
-      measured.contentY
-
-  if
-      y < clip.top
-      or y > clip.bottom
-  then
-    return
-  end
-
-  local left =
-      measured.contentX
-
-  local right =
-      left + width - 1
-
-  local visibleLeft =
-      math.max(
-        left,
-        clip.left
-      )
-
-  local visibleRight =
-      math.min(
-        right,
-        clip.right
-      )
-
-  if visibleLeft > visibleRight then
-    return
-  end
-
-  local visibleText =
-      text:sub(
-        visibleLeft - left + 1,
-        visibleRight - left + 1
-      )
-
-  if background ~= nil then
-    framebuffer.write(
-      frame,
-      visibleLeft,
-      y,
-      visibleText
-    )
-  else
-    framebuffer.writeForeground(
-      frame,
-      visibleLeft,
-      y,
-      visibleText
-    )
-  end
-end
-
 local function drawNode(
     frame,
     measured,
@@ -697,6 +636,11 @@ local function drawNode(
     foreground
   )
 
+  framebuffer.setForegroundAutoContrast(
+    frame,
+    getAutoContrast(node)
+  )
+
   if background ~= nil then
     framebuffer.setBackground(
       frame,
@@ -706,14 +650,6 @@ local function drawNode(
 
   if node.type == "text" then
     drawText(
-      frame,
-      measured,
-      node,
-      clip,
-      background
-    )
-  elseif node.type == "progress" then
-    drawProgress(
       frame,
       measured,
       node,

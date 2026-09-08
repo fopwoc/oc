@@ -83,6 +83,11 @@ compose.App(function()
         description = "Rows, cells, borders, surfaces, and empty space",
       },
       {
+        route = "charts",
+        title = "Charts",
+        description = "Progress, bars, and filled area history",
+      },
+      {
         route = "accordion",
         title = "Accordion",
         description = "Collapsible content and bounded live buffers",
@@ -458,6 +463,157 @@ compose.App(function()
     })
   end
 
+  local function chartsPage()
+    return page({
+      section("Progress Variants", {
+        compose.Text(
+          "Tile backgrounds without fill characters.",
+          compose.Modifier:foreground(colors.muted)
+        ),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Progress({
+          value = 0.69,
+          label = true,
+          labelContrast = true,
+          modifier = compose.Modifier:fillMaxWidth(),
+          fillColor = colors.primary,
+          emptyColor = colors.surface,
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Progress({
+          value = 0.42,
+          label = false,
+          modifier = compose.Modifier:fillMaxWidth(),
+          fillColor = colors.warning,
+          emptyColor = colors.surface,
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Progress({
+          value = 0.81,
+          label = "ACTIVE",
+          labelContrast = true,
+          labelColor = colors.warning,
+          modifier = compose.Modifier:fillMaxWidth(),
+          fillColor = colors.success,
+          emptyColor = colors.surface,
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        compose.Row({
+            components.Progress({
+              value = 0.35,
+              orientation = "vertical",
+              label = true,
+              labelContrast = true,
+              width = 7,
+              height = 6,
+              fillColor = colors.success,
+              emptyColor = colors.surface,
+            }),
+
+            compose.Spacer(
+              compose.Modifier:width(2)
+            ),
+
+            components.Progress({
+              value = 0.82,
+              orientation = "vertical",
+              label = true,
+              labelContrast = true,
+              width = 7,
+              height = 6,
+              fillColor = colors.warning,
+              emptyColor = colors.surface,
+            }),
+          }),
+      }),
+
+      compose.Spacer(compose.Modifier:height(1)),
+
+      section("Percentage Labels", {
+        components.BarChart({
+          rows = {
+            {
+              label = "CRAFTING",
+              value = 0.69,
+              color = colors.primary,
+            },
+            {
+              label = "WAITING",
+              value = 0.32,
+              color = colors.warning,
+            },
+            {
+              label = "COOLDOWN",
+              value = 0.08,
+              color = colors.muted,
+            },
+          },
+          labelWidth = 10,
+          labelContrast = true,
+          fillColor = colors.primary,
+          emptyColor = colors.surface,
+          modifier = compose.Modifier:fillMaxWidth(),
+        }),
+      }),
+
+      compose.Spacer(compose.Modifier:height(1)),
+
+      section("Without Labels", {
+        components.BarChart({
+          rows = {
+            {label = "A", value = 0.85},
+            {label = "B", value = 0.55},
+            {label = "C", value = 0.25},
+          },
+          labelWidth = 2,
+          showLabels = false,
+          fillColor = colors.success,
+          emptyColor = colors.surface,
+          modifier = compose.Modifier:fillMaxWidth(),
+        }),
+      }),
+
+      compose.Spacer(compose.Modifier:height(1)),
+
+      section("Filled History", {
+        components.AreaChart({
+          values = {
+            0.18, 0.32, 0.27, 0.48, 0.42, 0.66,
+            0.58, 0.76, 0.61, 0.84, 0.72, 0.92,
+          },
+          height = 7,
+          fillColor = colors.primary,
+          emptyColor = colors.surface,
+          modifier = compose.Modifier:fillMaxWidth(),
+        }),
+      }),
+
+      compose.Spacer(compose.Modifier:height(1)),
+
+      section("Grouped Columns", {
+        components.AreaChart({
+          values = {
+            0.25, 0.5, 0.35, 0.7, 0.55, 0.85,
+          },
+          height = 6,
+          barWidth = 2,
+          gap = 1,
+          fillColor = colors.warning,
+          emptyColor = colors.surface,
+          modifier = compose.Modifier:fillMaxWidth(),
+        }),
+      }),
+    })
+  end
+
   local function accordionPage()
     local buffer =
         compose.rememberRingBuffer(24)
@@ -532,6 +688,7 @@ compose.App(function()
     toggles = togglesPage,
     dialogs = dialogsPage,
     grid = gridPage,
+    charts = chartsPage,
     accordion = accordionPage,
   }
 

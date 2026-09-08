@@ -36,6 +36,23 @@ assertEqual(
   "transparent foreground preserves background"
 )
 
+local contrastFrame = framebuffer.create(1, 1)
+
+framebuffer.setForeground(contrastFrame, 0xFFFFFF)
+framebuffer.setBackground(contrastFrame, 0xFFFFFF)
+framebuffer.write(contrastFrame, 1, 1, "A")
+framebuffer.setForegroundAutoContrast(
+  contrastFrame,
+  true
+)
+framebuffer.writeForeground(contrastFrame, 1, 1, "A")
+
+assertEqual(
+  contrastFrame.foreground[1],
+  0x000000,
+  "auto contrast chooses dark text on light background"
+)
+
 framebuffer.setBackground(
   frame,
   color.create(0x0000FF, 0.5)

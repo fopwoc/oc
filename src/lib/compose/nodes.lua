@@ -55,17 +55,4 @@ function nodes.Spacer(modifier)
   )
 end
 
-function nodes.Progress(value, modifier)
-  return createNode(
-    "progress",
-    modifier,
-    {
-      value = math.max(
-        0,
-        math.min(1, value or 0)
-      ),
-    }
-  )
-end
-
 return nodes
