@@ -3,122 +3,26 @@ local compose = require("lib.compose.init")
 local components = require("lib.components.init")
 
 local telemetry = require("lib.telemetry.receiver")
+local telemetryStore = require("lib.telemetry.store")
+local incidentDashboard = require("lib.telemetry.incidents.dashboard")
+local incidentHistory = require("app.dashboard.incident_history")
 
-local stateModule = require("app.dashboard.state")
-
-
-local colors = components.ColorStyle({
-  background = 0x111418,
-  surface = 0x1A2026,
-  border = 0x36414A,
-
-  primary = 0x66CCFF,
-  text = 0xD8DEE9,
-  muted = 0x7F8C98,
-
-  good = 0x66CC88,
-  warning = 0xDDBB66,
-  bad = 0xDD6666,
-})
+local presenter = require("app.dashboard.presenter")
 
 
-local STALE_AFTER =
-    3
-
-local OFFLINE_AFTER =
-    10
+local colors = components.ColorStyle()
 
 
 local receiver =
     telemetry.create()
 
 local dashboard =
-    stateModule.create()
+    telemetryStore.create()
 
-
-local function sourceStatus(source)
-  local age =
-      dashboard:age(source)
-
-  if age >= OFFLINE_AFTER then
-    return "OFFLINE",
-        colors.bad
-  end
-
-  if age >= STALE_AFTER then
-    return "STALE",
-        colors.warning
-  end
-
-  return "ONLINE",
-      colors.good
-end
-
-
-local function formatAge(age)
-  if age < 1 then
-    return "<1s"
-  end
-
-  return tostring(
-    math.floor(age)
-  ) .. "s"
-end
-
-
-local function formatUptime(seconds)
-  seconds =
-      math.floor(
-        seconds or 0
-      )
-
-  local hours =
-      math.floor(
-        seconds / 3600
-      )
-
-  local minutes =
-      math.floor(
-        (seconds % 3600) / 60
-      )
-
-  if hours > 0 then
-    return tostring(hours)
-        .. "h "
-        .. tostring(minutes)
-        .. "m"
-  end
-
-  return tostring(minutes)
-      .. "m"
-end
-
-local function formatNumber(value)
-  value =
-      math.floor(
-        tonumber(value) or 0
-      )
-
-  local text =
-      tostring(value)
-
-  while true do
-    local formatted, count =
-        text:gsub(
-          "^(-?%d+)(%d%d%d)",
-          "%1,%2"
-        )
-
-    text = formatted
-
-    if count == 0 then
-      break
-    end
-  end
-
-  return text
-end
-
+local incidents =
+    incidentDashboard.create({
+      history = incidentHistory.create(),
+    })
 
 compose.App(function()
   local revision =
@@ -148,10 +52,19 @@ compose.App(function()
             )
 
         if packet then
-          dashboard:update(packet)
+          local incidentChanged =
+              incidents:handle(packet)
 
-          revision.value =
-              revision.value + 1
+          if packet.event == "telemetry" then
+            dashboard:update(packet)
+          end
+
+          if incidentChanged
+              or packet.event == "telemetry"
+          then
+            revision.value =
+                revision.value + 1
+          end
         end
       end
     end
@@ -176,175 +89,128 @@ compose.App(function()
   local sources =
       dashboard:all()
 
-  local function colored(text, color)
-    return {
-      text = tostring(text),
-      color = color,
-    }
-  end
+  local sections =
+      presenter.sections(
+        sources,
+        dashboard,
+        colors
+      )
 
-  local function metric(value, color)
-    return colored(
-      formatNumber(value),
-      color or colors.text
+  local content = {}
+
+  for _, section in ipairs(sections) do
+    content[#content + 1] = compose.Text(
+      section.title,
+      compose.Modifier:foreground(colors.primary)
+    )
+
+    content[#content + 1] = components.Grid({
+      rows = section.rows,
+      columns = section.columns,
+      appearance = "alternating",
+      oddBackground = colors.background,
+      evenBackground = colors.surface,
+      cellPadding = 0,
+      cell = section.cell,
+      modifier = compose.Modifier:fillMaxWidth(),
+    })
+
+    content[#content + 1] = compose.Spacer(
+      compose.Modifier:height(1)
     )
   end
 
-  local function gridCell(value, row)
-    if type(value) == "table" then
-      return compose.Text(
-        value.text,
-        compose.Modifier:foreground(
-          value.color or colors.text
-        )
-      )
-    end
-
-    return compose.Text(
-      tostring(value or ""),
-      compose.Modifier:foreground(
-        row == 1
-        and colors.primary
-        or colors.text
-      )
+  if #content == 0 then
+    content[#content + 1] = compose.Text(
+      "WAITING FOR TELEMETRY",
+      compose.Modifier:foreground(colors.muted)
     )
   end
 
-  local gridRows = {
-    {
-      "SOURCE",
-      "STATE",
-      "TYPE",
-      "TARGET",
-      "CRAFT",
-      "WAIT",
-      "REQ",
-      "DONE",
-      "CANCEL",
-      "COOL",
-      "SEEN",
-      "UP",
-    },
-  }
+  local scrollState =
+      compose.rememberScrollState()
 
-  for _, source in ipairs(sources) do
-    local status,
-    statusColor =
-        sourceStatus(source)
+  local currentIncident =
+      incidents:current()
 
-    local age =
-        dashboard:age(source)
-
-    local data =
-        source.data or {}
-
-    if source.source == "crafter" then
-      local activity =
-          data.playing
-          and "RUNNING"
-          or "PAUSED"
-
-      local activityColor =
-          data.playing
-          and colors.good
-          or colors.warning
-
-      if status ~= "ONLINE" then
-        activity = status
-        activityColor = statusColor
-      end
-
-      gridRows[#gridRows + 1] = {
-        colored(source.id, colors.primary),
-        colored(activity, activityColor),
-        colored(source.source, colors.muted),
-        metric(data.targets),
-        metric(data.crafting, colors.good),
-        metric(data.waiting),
-        metric(data.requests),
-        metric(data.completed, colors.good),
-        metric(data.canceled, colors.bad),
-        metric(data.cooldown, colors.warning),
-        colored(formatAge(age), colors.muted),
-        colored(
-          formatUptime(source.remoteUptime),
-          colors.muted
-        ),
-      }
-    else
-      gridRows[#gridRows + 1] = {
-        colored(source.id, colors.primary),
-        colored(status, statusColor),
-        colored(source.source, colors.muted),
-        "-",
-        "-",
-        "-",
-        "-",
-        "-",
-        "-",
-        "-",
-        colored(formatAge(age), colors.muted),
-        colored(
-          formatUptime(source.remoteUptime),
-          colors.muted
-        ),
-      }
-    end
-  end
-
-  if #sources == 0 then
-    gridRows[#gridRows + 1] = {
-      colored(
-        "WAITING FOR TELEMETRY",
-        colors.muted
-      ),
-    }
-  end
-
-  local dashboardGrid =
-      components.Grid({
-        rows = gridRows,
-        columns = {
-          {weight = 2, align = "left"},
-          {weight = 1, align = "left"},
-          {weight = 1, align = "left"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-          {weight = 1, align = "right"},
-        },
-        appearance = "alternating",
-        oddBackground = colors.background,
-        evenBackground = colors.surface,
-        cellPadding = 0,
-        cell = gridCell,
-        modifier = compose.Modifier:fillMaxWidth(),
-      })
+  local activeIncidentCount =
+      incidents:activeCount()
 
 
   return components.Entrypoint({
     title = "Dashboard",
-    colorStyle = colors,
     service = "Telemetry :4242",
     topBarActions = function()
-      return compose.Text(
-        tostring(#sources) .. " SOURCES",
-        compose.Modifier:foreground(colors.muted)
+      return compose.Row({
+        compose.Text(
+          tostring(#sources) .. " SOURCES",
+          compose.Modifier:foreground(colors.muted)
+        ),
+        compose.Spacer(compose.Modifier:width(1)),
+        compose.Text(
+          "INCIDENTS " .. tostring(activeIncidentCount),
+          compose.Modifier:foreground(
+            activeIncidentCount > 0
+              and colors.bad
+              or colors.muted
+          )
+        ),
+      })
+    end,
+    overlay = function()
+      if not currentIncident then
+        return nil
+      end
+
+      return components.Dialog(
+        "INCIDENT",
+        {
+          compose.Text(
+            currentIncident.title,
+            compose.Modifier:foreground(colors.onSurface)
+          ),
+
+          compose.Spacer(compose.Modifier:height(1)),
+
+          compose.Text(
+            currentIncident.message,
+            compose.Modifier:foreground(colors.text)
+          ),
+
+          compose.Spacer(compose.Modifier:height(1)),
+
+          compose.Text(
+            currentIncident.source
+              .. " · "
+              .. currentIncident.sourceId,
+            compose.Modifier:foreground(colors.muted)
+          ),
+
+          compose.Spacer(compose.Modifier:height(1)),
+
+          components.Button(
+            "CLOSE",
+            function()
+              if incidents:dismiss(currentIncident.key) then
+                revision.value =
+                    revision.value + 1
+              end
+            end,
+            compose.Modifier:foreground(colors.primary)
+          ),
+        },
+        compose.Modifier
+        :width(40)
+        :background(colors.surfaceVariant)
       )
     end,
     content = compose.Column(
-      {
-        dashboardGrid,
-      },
+      content,
       compose.Modifier
       :fillMaxWidth()
       :fillMaxHeight()
       :padding(1)
+      :verticalScroll(scrollState)
     ),
   })
 end)

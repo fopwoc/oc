@@ -62,6 +62,7 @@ function receiver.create(options)
       id = packet.id,
       uptime = packet.uptime,
       data = packet.data,
+      event = packet.event,
 
       localAddress =
           localAddress,

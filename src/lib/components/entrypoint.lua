@@ -63,10 +63,17 @@ function entrypoint.Entrypoint(options)
   )
 
   local colors =
-      colorStyle.create(
-        options.colorStyle
-        or options.colors
-      )
+      colorStyle.defaults()
+
+  if options.colorStyle
+      or options.colors
+  then
+    colors =
+        colorStyle.create(
+          options.colorStyle
+          or options.colors
+        )
+  end
 
   return colorStyle.with(colors, function()
 

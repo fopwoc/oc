@@ -1,31 +1,24 @@
-local component =
-    require("component")
-
 local computer =
     require("computer")
 
 local scheduler = {}
 
+local rollingCounter =
+    require("lib.collections.rolling_counter")
+
+local craftableResolver =
+    require("lib.ae2.craftable")
+
+local ae2 =
+    require("lib.ae2.network")
+
 local me =
-    component.me_interface
+    assert(
+      ae2.resolveProxy(),
+      "No ME controller or interface component found"
+    )
 
 local POLL_INTERVAL = 0.25
-
-local function loadCraftable(label)
-  local found =
-      me.getCraftables({
-        label = label,
-      })
-
-  if not found or #found == 0 then
-    error(
-      "Craftable not found: "
-      .. label
-    )
-  end
-
-  return found[1]
-end
 
 local function resolve(
     value,
@@ -45,18 +38,58 @@ end
 
 local function createTarget(
     config,
-    defaults
+    defaults,
+    schedulerConfig
 )
   assert(
     type(config) == "table",
     "Target must be a table"
   )
 
+  local targetType =
+      config.type
+      or "item"
+
+  assert(
+    targetType == "item"
+      or targetType == "fluid",
+    "Target type must be item or fluid"
+  )
+
+  local name =
+      config.name
+      or config.id
+
+  if targetType == "fluid" then
+    name =
+        config.fluid
+        or name
+
+    assert(
+      type(name) == "string"
+        and name ~= "",
+      "Fluid target requires fluid or name"
+    )
+  end
+
   local label =
-      assert(
-        config.label,
-        "Target label is required"
-      )
+      config.label
+      or name
+
+  local craftableLabel =
+      config.label
+
+  assert(
+    targetType == "fluid"
+      or type(craftableLabel) == "string",
+    "Item target label is required"
+  )
+
+  assert(
+    type(label) == "string"
+      and label ~= "",
+    "Target label is required"
+  )
 
   local amount =
       resolve(
@@ -72,6 +105,13 @@ local function createTarget(
         0
       )
 
+  local retrySeconds =
+      resolve(
+        config.retrySeconds,
+        defaults.retrySeconds,
+        1
+      )
+
   assert(
     type(amount) == "number"
     and amount > 0,
@@ -80,20 +120,30 @@ local function createTarget(
   )
 
   assert(
-    type(cooldown) == "number"
+      type(cooldown) == "number"
     and cooldown >= 0,
     "Target cooldown must be >= 0: "
-    .. label
+      .. label
+  )
+
+  assert(
+    type(retrySeconds) == "number"
+      and retrySeconds >= 0,
+    "Target retrySeconds must be >= 0: "
+      .. label
   )
 
   return {
+    type = targetType,
     label = label,
+    name = name,
 
     amount = amount,
     cooldown = cooldown,
+    retrySeconds = retrySeconds,
 
-    craftable =
-        loadCraftable(label),
+    craftable = nil,
+    resolveError = nil,
 
     job = nil,
 
@@ -101,9 +151,10 @@ local function createTarget(
 
     nextRequestAt = 0,
 
-    completed = 0,
-    canceled = 0,
-    requests = 0,
+    completions = rollingCounter.create({
+      windowSeconds = schedulerConfig.completionWindowSeconds,
+      capacity = schedulerConfig.completionHistoryCapacity,
+    }),
   }
 end
 
@@ -124,8 +175,6 @@ local function updateTarget(
 
   if target.job.isCanceled() then
     target.job = nil
-    target.canceled =
-        target.canceled + 1
 
     target.status = "cooldown"
     target.nextRequestAt =
@@ -136,8 +185,7 @@ local function updateTarget(
 
   if target.job.isDone() then
     target.job = nil
-    target.completed =
-        target.completed + 1
+    target.completions:record(now)
 
     target.status = "cooldown"
     target.nextRequestAt =
@@ -157,18 +205,43 @@ local function requestTarget(
     return false
   end
 
-  target.requests =
-      target.requests + 1
+  if not target.craftable then
+    local resolved, errorMessage =
+        craftableResolver.resolve(
+          me,
+          target
+        )
 
-  local job =
-      target.craftable.request(
+    if not resolved then
+      target.resolveError = errorMessage
+      target.status = "waiting"
+      target.nextRequestAt =
+          now + target.retrySeconds
+
+      return false
+    end
+
+    target.craftable = resolved
+    target.resolveError = nil
+  end
+
+  local requested, job =
+      pcall(
+        target.craftable.request,
         target.amount
       )
 
-  if not job then
-    target.status = "cooldown"
+  if not requested or not job then
+    -- A missing dependency is a normal scheduling state. It is
+    -- deliberately not recorded as a failed craft attempt.
+    target.craftable = nil
+    target.resolveError =
+        requested
+        and "craftable request was not accepted"
+        or tostring(job)
+    target.status = "waiting"
     target.nextRequestAt =
-        now + target.cooldown
+        now + target.retrySeconds
 
     return false
   end
@@ -216,12 +289,44 @@ function scheduler.create(config)
     ] =
         createTarget(
           targetConfig,
-          defaults
+          defaults,
+          config
         )
   end
 
   function instance:stop()
     self.running = false
+  end
+
+  function instance:snapshot(playing)
+    local crafting = 0
+    local waiting = 0
+    local cooldown = 0
+
+    local completedPerHour = 0
+    local now = computer.uptime()
+
+    for _, target in ipairs(self.targets) do
+      if target.status == "crafting" then
+        crafting = crafting + 1
+      elseif target.status == "cooldown" then
+        cooldown = cooldown + 1
+      else
+        waiting = waiting + 1
+      end
+
+      completedPerHour = completedPerHour
+          + target.completions:perHour(now)
+    end
+
+    return {
+      playing = playing,
+      targets = #self.targets,
+      crafting = crafting,
+      waiting = waiting,
+      cooldown = cooldown,
+      completedPerHour = completedPerHour,
+    }
   end
 
   function instance:step(allowScheduling)

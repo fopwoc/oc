@@ -1,14 +1,11 @@
-local filesystem =
-    require("filesystem")
-
-local shell =
-    require("shell")
-
 local compose =
     require("lib.compose.init")
 
 local components =
     require("lib.components.init")
+
+local configLoader =
+    require("lib.config.loader")
 
 local schedulerModule =
     require("app.crafter.scheduler")
@@ -17,73 +14,7 @@ local telemetry =
     require("lib.telemetry.sender")
 
 
-local CONFIG_PATH =
-    filesystem.canonical(
-      filesystem.concat(
-        shell.getWorkingDirectory(),
-        "app/crafter/config.lua"
-      )
-    )
-
-local CONFIG_EXAMPLE_PATH =
-    filesystem.canonical(
-      filesystem.concat(
-        shell.getWorkingDirectory(),
-        "app/crafter/config.example.lua"
-      )
-    )
-
-
-local colors = components.ColorStyle({
-  background = 0x111418,
-  surface = 0x1A2026,
-  border = 0x36414A,
-
-  primary = 0x66CCFF,
-  text = 0xD8DEE9,
-  muted = 0x7F8C98,
-
-  good = 0x66CC88,
-  warning = 0xDDBB66,
-  bad = 0xDD6666,
-})
-
-
-local function loadConfig()
-  if not filesystem.exists(
-        CONFIG_PATH
-      ) then
-    error(
-      "Crafter configuration not found.\n"
-      .. "\n"
-      .. "Copy:\n"
-      .. "  "
-      .. CONFIG_EXAMPLE_PATH
-      .. "\n"
-      .. "to:\n"
-      .. "  "
-      .. CONFIG_PATH
-      .. "\n"
-      .. "\n"
-      .. "Then edit config.lua and restart Crafter."
-    )
-  end
-
-  local ok, config =
-      pcall(
-        dofile,
-        CONFIG_PATH
-      )
-
-  if not ok then
-    error(
-      "Failed to load Crafter configuration:\n"
-      .. tostring(config)
-    )
-  end
-
-  return config
-end
+local colors = components.ColorStyle()
 
 
 local function statusInfo(target)
@@ -102,75 +33,11 @@ local function statusInfo(target)
 end
 
 
-local function telemetryState(
-    scheduler,
-    playing
-)
-  local crafting = 0
-  local waiting = 0
-  local cooldown = 0
-
-  local requests = 0
-  local completed = 0
-  local canceled = 0
-
-  for _, target in ipairs(
-    scheduler.targets
-  ) do
-    if target.status == "crafting" then
-      crafting =
-          crafting + 1
-    elseif target.status == "cooldown" then
-      cooldown =
-          cooldown + 1
-    else
-      waiting =
-          waiting + 1
-    end
-
-    requests =
-        requests
-        + target.requests
-
-    completed =
-        completed
-        + target.completed
-
-    canceled =
-        canceled
-        + target.canceled
-  end
-
-  return {
-    playing =
-        playing,
-
-    targets =
-        #scheduler.targets,
-
-    crafting =
-        crafting,
-
-    waiting =
-        waiting,
-
-    cooldown =
-        cooldown,
-
-    requests =
-        requests,
-
-    completed =
-        completed,
-
-    canceled =
-        canceled,
-  }
-end
-
-
 local config =
-    loadConfig()
+    configLoader.load({
+      directory = "app/crafter",
+      displayName = "Crafter",
+    })
 
 local scheduler =
     schedulerModule.create(
@@ -214,8 +81,7 @@ compose.App(function()
     function()
       while true do
         telemetrySender:send(
-          telemetryState(
-            scheduler,
+          scheduler:snapshot(
             playing.value
           )
         )
@@ -278,17 +144,12 @@ compose.App(function()
                 .. tostring(
                   target.amount
                 )
-                .. "   done "
-                .. tostring(
-                  target.completed
-                )
-                .. "   canceled "
-                .. tostring(
-                  target.canceled
-                )
-                .. "   requests "
-                .. tostring(
-                  target.requests
+                .. "   done/h "
+                .. string.format(
+                  "%.1f",
+                  target.completions:perHour(
+                    compose.uptime()
+                  )
                 ),
                 compose.Modifier
                 :foreground(
@@ -327,7 +188,6 @@ compose.App(function()
 
   return components.Entrypoint({
     title = "Crafter",
-    colorStyle = colors,
     service = "scheduler",
     topBarActions = function()
       return compose.Text(
@@ -341,20 +201,23 @@ compose.App(function()
         )
       )
     end,
-    bottomBarActions = function()
-      return components.Button(
-        playing.value
-        and "PAUSE"
-        or "PLAY",
-        function()
-          playing.value = not playing.value
-        end,
-        compose.Modifier:foreground(
+    bottomBarActions = function(context)
+      return compose.Row({
+        components.TelemetryStatus(telemetrySender, context),
+        components.Button(
           playing.value
-          and colors.warning
-          or colors.good
-        )
-      )
+          and "PAUSE"
+          or "PLAY",
+          function()
+            playing.value = not playing.value
+          end,
+          compose.Modifier:foreground(
+            playing.value
+            and colors.warning
+            or colors.good
+          )
+        ),
+      })
     end,
     content = compose.Column(
       rows,

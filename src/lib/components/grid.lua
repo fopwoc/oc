@@ -1,7 +1,53 @@
 local compose = require("lib.compose.init")
 local colorStyle = require("lib.components.color_style")
+local format = require("lib.utils.format")
 
 local grid = {}
+
+function grid.GridCells(colors)
+  assert(
+    type(colors) == "table",
+    "Grid cells require colors"
+  )
+
+  local instance = {}
+
+  function instance:colored(value, color)
+    return {
+      text = tostring(value),
+      color = color,
+    }
+  end
+
+  function instance:number(value, color)
+    return self:colored(
+      format.number(value),
+      color or colors.text
+    )
+  end
+
+  function instance.render(value, row)
+    if type(value) == "table" then
+      return compose.Text(
+        value.text,
+        compose.Modifier:foreground(
+          value.color or colors.text
+        )
+      )
+    end
+
+    return compose.Text(
+      tostring(value or ""),
+      compose.Modifier:foreground(
+        row == 1
+        and colors.primary
+        or colors.text
+      )
+    )
+  end
+
+  return instance
+end
 
 local function sharedBorderCharacters(
     row,

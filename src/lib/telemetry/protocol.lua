@@ -17,7 +17,8 @@ function protocol.encode(
     source,
     id,
     uptime,
-    data
+    data,
+    event
 )
   assert(
     type(source) == "string",
@@ -57,6 +58,9 @@ function protocol.encode(
 
     data =
         data,
+
+    event =
+        event,
   })
 end
 
@@ -90,9 +94,16 @@ function protocol.decode(payload)
       or type(packet.id) ~= "string"
       or type(packet.uptime) ~= "number"
       or type(packet.data) ~= "table"
+      or (
+        packet.event ~= nil
+        and type(packet.event) ~= "string"
+      )
   then
     return nil
   end
+
+  packet.event = packet.event
+      or "telemetry"
 
   return packet
 end

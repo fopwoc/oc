@@ -377,11 +377,23 @@ local function listManifest(manifest)
   print("Available:")
   print()
 
+  local nameWidth = 12
+
+  for _, name in ipairs(names) do
+    nameWidth = math.max(
+      nameWidth,
+      #name
+    )
+  end
+
+  local rowFormat =
+      "  %-" .. tostring(nameWidth) .. "s  %s"
+
   for _, name in ipairs(names) do
     local target = manifest[name]
 
     print(string.format(
-      "  %-12s %s",
+      rowFormat,
       name,
       target.description or ""
     ))

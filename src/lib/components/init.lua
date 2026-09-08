@@ -16,6 +16,8 @@ local bufferView = require("lib.components.buffer_view")
 local progress = require("lib.components.progress")
 local barChart = require("lib.components.bar_chart")
 local areaChart = require("lib.components.area_chart")
+local section = require("lib.components.section")
+local telemetryStatus = require("lib.components.telemetry_status")
 
 components.Card =
     card.Card
@@ -50,6 +52,9 @@ components.CommandBar =
 components.Grid =
     grid.Grid
 
+components.GridCells =
+    grid.GridCells
+
 components.Entrypoint =
     entrypoint.Entrypoint
 
@@ -70,5 +75,11 @@ components.BarChart =
 
 components.AreaChart =
     areaChart.AreaChart
+
+components.Section =
+    section.Section
+
+components.TelemetryStatus =
+    telemetryStatus.TelemetryStatus
 
 return components

@@ -35,20 +35,73 @@ function sender.create(options)
 
   local instance = {}
 
+  instance.source = source
+  instance.id = id
+  instance.port = port
+  instance._status = {
+    state = "waiting",
+    uptime = nil,
+    error = nil,
+  }
 
-  function instance:send(data)
-    local payload =
-        protocol.encode(
+  local function setStatus(state, errorMessage)
+    instance._status.state = state
+    instance._status.uptime = computer.uptime()
+    instance._status.error = errorMessage
+  end
+
+  function instance:sendEvent(event, data)
+    local encoded, payload =
+        pcall(
+          protocol.encode,
           source,
           id,
           computer.uptime(),
-          data
+          data,
+          event
         )
 
-    return modem.broadcast(
-      port,
-      payload
-    )
+    if not encoded then
+      setStatus("failed", tostring(payload))
+      return nil, payload
+    end
+
+    local sent, result =
+        pcall(function()
+          return modem.broadcast(
+            port,
+            payload
+          )
+        end)
+
+    if not sent then
+      setStatus("failed", tostring(result))
+      return nil, result
+    end
+
+    if result == false then
+      local errorMessage =
+          "modem broadcast returned false"
+
+      setStatus("failed", errorMessage)
+      return result, errorMessage
+    end
+
+    setStatus("sent")
+
+    return result
+  end
+
+  function instance:send(data)
+    return self:sendEvent(nil, data)
+  end
+
+  function instance:status()
+    return {
+      state = self._status.state,
+      uptime = self._status.uptime,
+      error = self._status.error,
+    }
   end
 
   return instance

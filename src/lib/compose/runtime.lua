@@ -1,5 +1,6 @@
 local input = require("lib.compose.input")
 local inputTarget = require("lib.compose.input_target")
+local coroutineScheduler = require("lib.coroutines")
 
 local runtime = {}
 
@@ -116,6 +117,19 @@ local function observeState(state)
 
   state.observers[currentScope] = true
   currentScope.dependencies[state] = true
+end
+
+
+local function isScopeActive(scope)
+  while scope do
+    if scope.active == false then
+      return false
+    end
+
+    scope = scope.parent
+  end
+
+  return true
 end
 
 
@@ -273,24 +287,11 @@ function runtime.remember(initial)
 end
 
 function runtime.delay(seconds)
-  coroutine.yield({
-    kind = "delay",
-    wakeAt =
-        now()
-        + seconds,
-  })
+  return coroutineScheduler.delay(seconds)
 end
 
 function runtime.awaitEvent(name)
-  assert(
-    type(name) == "string",
-    "awaitEvent() requires an event name"
-  )
-
-  return coroutine.yield({
-    kind = "event",
-    name = name,
-  })
+  return coroutineScheduler.awaitEvent(name)
 end
 
 function runtime.LaunchedEffect(key, block)
@@ -320,26 +321,22 @@ function runtime.LaunchedEffect(key, block)
     old.cancelled = true
   end
 
-  local effect = {
-    kind = "effect",
-    key = key,
-    thread =
-        coroutine.create(block),
+  local scope = currentScope
+  local effect = composition.scheduler:launch(
+    block,
+    {
+      isActive = function()
+        return isScopeActive(scope)
+      end,
+    }
+  )
 
-    wakeAt = 0,
-    waitingEvent = nil,
-    scope = currentScope,
-
-    cancelled = false,
-  }
+  effect.kind = "effect"
+  effect.key = key
+  effect.scope = scope
 
   currentScope.slots[index] =
       effect
-
-  table.insert(
-    composition.effects,
-    effect
-  )
 end
 
 function runtime.DisposableEffect(key, setup)
@@ -387,18 +384,6 @@ function runtime.DisposableEffect(key, setup)
     key = key,
     cleanup = cleanup,
   }
-end
-
-local function isScopeActive(scope)
-  while scope do
-    if scope.active == false then
-      return false
-    end
-
-    scope = scope.parent
-  end
-
-  return true
 end
 
 function runtime.RecomposeScope(key, content, options)
@@ -541,170 +526,22 @@ local function composeRoot(content)
 end
 
 
-local function resumeEffect(
-    effect,
-    ...
-)
-  effect.waitingEvent =
-      nil
-
-  local ok, yielded =
-      coroutine.resume(
-        effect.thread,
-        ...
-      )
-
-  if not ok then
-    error(yielded, 0)
-  end
-
-  if
-      coroutine.status(effect.thread)
-      == "dead"
-  then
-    return
-  end
-
-  if
-      type(yielded) == "table"
-      and yielded.kind == "delay"
-  then
-    effect.wakeAt =
-        yielded.wakeAt
-    effect.waitingEvent =
-        nil
-  elseif
-      type(yielded) == "table"
-      and yielded.kind == "event"
-  then
-    effect.waitingEvent =
-        yielded.name
-  else
-    effect.wakeAt =
-        now()
-    effect.waitingEvent =
-        nil
-  end
-end
-
-
 local function runEffects()
-  local currentTime =
-      now()
-
-  local index = 1
-
-  while
-    index <= #composition.effects
-  do
-    local effect =
-        composition.effects[index]
-
-    if
-        effect.cancelled
-        or coroutine.status(
-          effect.thread
-        ) == "dead"
-    then
-      table.remove(
-        composition.effects,
-        index
-      )
-    elseif
-        not isScopeActive(effect.scope)
-    then
-      index = index + 1
-    elseif
-        not effect.waitingEvent
-        and effect.wakeAt <= currentTime
-    then
-      resumeEffect(
-        effect
-      )
-
-      if
-          coroutine.status(
-            effect.thread
-          ) == "dead"
-      then
-        table.remove(
-          composition.effects,
-          index
-        )
-      else
-        index =
-            index + 1
-      end
-    else
-      index =
-          index + 1
-    end
-  end
+  composition.scheduler:run()
 end
 
 
 local function dispatchEvent(signal)
-  local name =
-      signal[1]
-
-  if not name then
-    return
-  end
-
-  for _, effect in ipairs(
-    composition.effects
-  ) do
-    if
-        not effect.cancelled
-        and isScopeActive(effect.scope)
-        and effect.waitingEvent
-        == name
-        and coroutine.status(
-          effect.thread
-        ) ~= "dead"
-    then
-      resumeEffect(
-        effect,
-        table.unpack(signal)
-      )
-    end
+  if signal[1] then
+    composition.scheduler:dispatch(
+      table.unpack(signal)
+    )
   end
 end
 
 
 local function nextWake()
-  local wakeAt = nil
-
-  for _, effect in ipairs(
-    composition.effects
-  ) do
-    if
-        not effect.cancelled
-        and isScopeActive(effect.scope)
-        and not effect.waitingEvent
-        and coroutine.status(
-          effect.thread
-        ) ~= "dead"
-    then
-      if
-          wakeAt == nil
-          or effect.wakeAt < wakeAt
-      then
-        wakeAt =
-            effect.wakeAt
-      end
-    end
-  end
-
-  if not wakeAt then
-    return 1
-  end
-
-  return math.max(
-    0,
-    wakeAt
-    - now()
-  )
+  return composition.scheduler:nextWake()
 end
 
 local function isLocalInput(item)
@@ -1037,6 +874,7 @@ local function cleanupComposition()
 
   if composition then
     firstError = disposeScope(composition.root)
+    composition.scheduler:dispose()
   end
 
   input.clear()
@@ -1075,7 +913,9 @@ function runtime.App(content, render, options)
       platform.now()
 
   composition = {
-    effects = {},
+    scheduler = coroutineScheduler.create({
+      now = now,
+    }),
     dirty = true,
     layoutDirty = true,
     running = true,

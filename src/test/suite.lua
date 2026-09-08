@@ -1,15 +1,7 @@
-local tests = {
-  "test/engine.lua",
-  "test/color.lua",
-  "test/ring_buffer.lua",
-  "test/navigation_engine.lua",
-  "test/lifecycle.lua",
-  "test/renderer.lua",
-  "test/scaffold.lua",
-}
-
-for _, path in ipairs(tests) do
-  dofile(path)
-end
+dofile("test/compose.lua")
+dofile("test/coroutines.lua")
+dofile("test/storage.lua")
+dofile("test/telemetry.lua")
+dofile("test/collections.lua")
 
 print("test suite: OK")

@@ -1,5 +1,8 @@
 return {
   compose = {
+    depends = {
+      "coroutines",
+    },
     files = {
       "lib/compose/nodes.lua",
       "lib/compose/runtime.lua",
@@ -20,27 +23,93 @@ return {
     },
   },
 
+  coroutines = {
+    files = {
+      "lib/coroutines.lua",
+    },
+  },
+
   test_suite = {
     depends = {
       "compose",
+      "telemetry_incidents",
+      "storage",
+      "power_monitor_core",
+      "collections",
     },
     files = {
       "test/suite.lua",
-      "test/engine.lua",
-      "test/color.lua",
-      "test/ring_buffer.lua",
-      "test/navigation_engine.lua",
-      "test/lifecycle.lua",
-      "test/renderer.lua",
-      "test/scaffold.lua",
+      "test/compose.lua",
+      "test/coroutines.lua",
+      "test/coroutines/scheduler.lua",
+      "test/compose/engine.lua",
+      "test/compose/color.lua",
+      "test/compose/ring_buffer.lua",
+      "test/compose/navigation_engine.lua",
+      "test/compose/lifecycle.lua",
+      "test/compose/renderer.lua",
+      "test/storage.lua",
+      "test/storage/round_trip.lua",
+      "test/telemetry.lua",
+      "test/telemetry/incidents.lua",
+      "test/collections.lua",
+      "test/collections/rolling_counter.lua",
     },
     run = "test/suite.lua",
     description = "Compose engine regression tests",
   },
 
+  test_scaffold = {
+    depends = {
+      "compose_components",
+    },
+    files = {
+      "test/scaffold.lua",
+      "test/components/scaffold.lua",
+    },
+    run = "test/scaffold.lua",
+    description = "Scaffold input handling test",
+  },
+
+  test_suite_adapter = {
+    depends = {
+      "ae2_craftable",
+      "ae2_network",
+      "gt_lapotronic",
+    },
+    files = {
+      "test/suite_adapter.lua",
+      "test/production_line.lua",
+      "test/production_line/ae2.lua",
+      "test/crafter/adapter.lua",
+      "test/power_monitor/adapter.lua",
+    },
+    run = "test/suite_adapter.lua",
+    description = "Read-only OpenComputers adapter API checks",
+  },
+
+  ae2_craftable = {
+    files = {
+      "lib/ae2/craftable.lua",
+    },
+  },
+
+  ae2_network = {
+    files = {
+      "lib/ae2/network.lua",
+    },
+  },
+
+  gt_lapotronic = {
+    files = {
+      "lib/gt/lapotronic.lua",
+    },
+  },
+
   compose_components = {
     depends = {
       "compose",
+      "utils",
     },
     files = {
       "lib/components/init.lua",
@@ -60,6 +129,8 @@ return {
       "lib/components/progress.lua",
       "lib/components/bar_chart.lua",
       "lib/components/area_chart.lua",
+      "lib/components/section.lua",
+      "lib/components/telemetry_status.lua",
     },
   },
 
@@ -68,9 +139,10 @@ return {
       "compose_components",
     },
     files = {
-      "test/compose.lua",
+      "test/compose_showcase.lua",
+      "test/components/compose.lua",
     },
-    run = "test/compose.lua",
+    run = "test/compose_showcase.lua",
     description = "UI showcase",
   },
 
@@ -80,6 +152,7 @@ return {
     },
     files = {
       "test/scroll.lua",
+      "test/components/scroll.lua",
     },
     run = "test/scroll.lua",
     description = "Scroll and recomposition stress test",
@@ -91,14 +164,16 @@ return {
     },
     files = {
       "test/components.lua",
+      "test/components/showcase.lua",
     },
     run = "test/components.lua",
     description = "Components showcase",
   },
 
     test_unicode = {
-      files = {
-        "test/unicode.lua",
+    files = {
+      "test/unicode.lua",
+      "test/components/unicode.lua",
     },
     run = "test/unicode.lua",
       description = "unicode test",
@@ -116,6 +191,7 @@ return {
     },
     files = {
       "test/navigation.lua",
+      "test/components/navigation.lua",
     },
     run = "test/navigation.lua",
     description = "Navigation showcase",
@@ -139,10 +215,115 @@ return {
     },
   },
 
-  crafter = {
+  telemetry_store = {
+    files = {
+      "lib/telemetry/store.lua",
+    },
+  },
+
+  storage = {
+    files = {
+      "lib/storage/store.lua",
+    },
+  },
+
+  telemetry_incidents = {
+    depends = {
+      "telemetry_sender",
+    },
+    files = {
+      "lib/telemetry/incidents/manager.lua",
+      "lib/telemetry/incidents/dashboard.lua",
+    },
+  },
+
+  utils = {
+    files = {
+      "lib/utils/format.lua",
+      "lib/utils/series.lua",
+    },
+  },
+
+  collections = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "lib/collections/rolling_counter.lua",
+    },
+  },
+
+  config_loader = {
+    files = {
+      "lib/config/loader.lua",
+    },
+  },
+
+  production_line = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "lib/production_line/analytics.lua",
+    },
+  },
+
+  power_monitor_core = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "lib/power_monitor/decimal.lua",
+      "lib/power_monitor/analytics.lua",
+    },
+  },
+
+  power_monitor = {
     depends = {
       "compose_components",
+      "config_loader",
+      "power_monitor_core",
+      "gt_lapotronic",
+      "storage",
       "telemetry_sender",
+      "utils",
+    },
+    files = {
+      "app/power_monitor/config.example.lua",
+      "app/power_monitor/history.lua",
+      "app/power_monitor/main.lua",
+      "app/power_monitor/settings.lua",
+    },
+    run = "app/power_monitor/main.lua",
+    description = "GTNH power sustainability monitor",
+  },
+
+  line_monitor = {
+    depends = {
+      "ae2_network",
+      "compose_components",
+      "config_loader",
+      "telemetry_incidents",
+      "utils",
+      "telemetry_sender",
+      "production_line",
+    },
+    files = {
+      "app/line_monitor/config.example.lua",
+      "app/line_monitor/main.lua",
+    },
+    run = "app/line_monitor/main.lua",
+    description = "Passive AE2 production line monitor",
+  },
+
+  crafter = {
+    depends = {
+      "ae2_craftable",
+      "compose_components",
+      "config_loader",
+      "ae2_network",
+      "telemetry_sender",
+      "collections",
     },
     files = {
       "app/crafter/config.example.lua",
@@ -156,11 +337,16 @@ return {
   dashboard = {
     depends = {
       "compose_components",
+      "storage",
+      "telemetry_incidents",
       "telemetry_receiver",
+      "telemetry_store",
+      "utils",
     },
     files = {
+      "app/dashboard/incident_history.lua",
       "app/dashboard/main.lua",
-      "app/dashboard/state.lua",
+      "app/dashboard/presenter.lua",
     },
     run = "app/dashboard/main.lua",
     description = "Craft Dashboard",

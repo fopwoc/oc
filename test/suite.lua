@@ -1,13 +1,10 @@
-for _, path in ipairs({
-  "test/engine.lua",
-  "test/color.lua",
-  "test/color_style.lua",
-  "src/test/ring_buffer.lua",
-  "test/scroll.lua",
-  "test/navigation_engine.lua",
-  "test/lifecycle.lua",
-}) do
-  dofile(path)
-end
+dofile("test/compose.lua")
+dofile("test/coroutines.lua")
+dofile("test/utils.lua")
+dofile("test/telemetry.lua")
+dofile("test/power_monitor.lua")
+dofile("test/collections.lua")
+dofile("test/crafter.lua")
+dofile("test/production_line.lua")
 
 print("repository test suite: OK")
