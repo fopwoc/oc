@@ -46,6 +46,7 @@ return {
       "lib/components/init.lua",
       "lib/components/card.lua",
       "lib/components/button.lua",
+      "lib/components/event_consumer.lua",
       "lib/components/toggle.lua",
       "lib/components/dialog.lua",
       "lib/components/scaffold.lua",
@@ -53,6 +54,7 @@ return {
       "lib/components/command_bar.lua",
       "lib/components/grid.lua",
       "lib/components/entrypoint.lua",
+      "lib/components/color_style.lua",
       "lib/components/accordion.lua",
       "lib/components/buffer_view.lua",
       "lib/components/progress.lua",
@@ -70,6 +72,17 @@ return {
     },
     run = "test/compose.lua",
     description = "UI showcase",
+  },
+
+  test_scroll = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "test/scroll.lua",
+    },
+    run = "test/scroll.lua",
+    description = "Scroll and recomposition stress test",
   },
 
   test_components = {

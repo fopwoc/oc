@@ -1,14 +1,8 @@
 local compose = require("lib.compose.init")
 local button = require("lib.components.button")
+local colorStyle = require("lib.components.color_style")
 
 local topAppBar = {}
-
-local DEFAULT_COLORS = {
-  foreground = 0xD8DEE9,
-  muted = 0x7F8C98,
-  action = 0x66CCFF,
-  danger = 0xDD6666,
-}
 
 local function resolveNavigation(value, rootAction)
   if type(value) == "function" then
@@ -33,7 +27,7 @@ local function resolveNavigation(value, rootAction)
 
       return {
         label = "X",
-        color = "danger",
+        color = "bad",
         onClick = rootAction,
       }
     end
@@ -56,7 +50,7 @@ local function resolveNavigation(value, rootAction)
   if rootAction then
     return {
       label = "X",
-      color = "danger",
+      color = "bad",
       onClick = rootAction,
     }
   end
@@ -138,7 +132,12 @@ function topAppBar.TopAppBar(options)
     "TopAppBar requires a title"
   )
 
-  local colors = options.colors or DEFAULT_COLORS
+  local colors =
+      (options.colorStyle or options.colors)
+      and colorStyle.create(
+        options.colorStyle or options.colors
+      )
+      or colorStyle.current()
   local children = {}
   local navigation = resolveNavigation(
     options.navigation,
@@ -148,8 +147,9 @@ function topAppBar.TopAppBar(options)
   local navigationColor =
       navigation
       and (
-        navigation.color == "danger"
-        and (colors.danger or 0xDD6666)
+        (navigation.color == "bad"
+          or navigation.color == "danger")
+        and colors.bad
         or colors.action
       )
 

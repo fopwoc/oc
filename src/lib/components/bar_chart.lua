@@ -1,5 +1,6 @@
 local compose = require("lib.compose.init")
 local progress = require("lib.components.progress")
+local colorStyle = require("lib.components.color_style")
 
 local barChart = {}
 
@@ -37,6 +38,8 @@ function barChart.BarChart(options)
   local showLabels =
       options.showLabels ~= false
 
+  local colors = colorStyle.current()
+
   local children = {}
 
   for index, row in ipairs(options.rows) do
@@ -49,7 +52,9 @@ function barChart.BarChart(options)
         compose.Row({
             compose.Text(
               label,
-              compose.Modifier:width(labelWidth)
+              compose.Modifier
+              :width(labelWidth)
+              :foreground(colors.onSurface)
             ),
 
             compose.Spacer(

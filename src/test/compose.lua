@@ -6,7 +6,34 @@ compose.App(function()
   local progress = compose.remember(0)
   local clicks = compose.remember(0)
   local scroll = compose.remember(0)
+  local mouseEvent = compose.remember("none")
+  local mouseDetails = compose.remember("waiting for touch / drag / drop")
   local debugEnabled = compose.remember(debug.isEnabled())
+
+  local function observeMouseEvent(name)
+    compose.LaunchedEffect(
+      "mouse-probe-" .. name,
+      function()
+        while true do
+          local _, screen, x, y, button, player =
+              compose.awaitEvent(name)
+
+          mouseEvent.value = name
+          mouseDetails.value =
+              string.format(
+                "x %d y %d button %s",
+                x,
+                y,
+                tostring(button)
+              )
+        end
+      end
+    )
+  end
+
+  observeMouseEvent("touch")
+  observeMouseEvent("drag")
+  observeMouseEvent("drop")
 
   local lifecycleVisible =
       compose.remember(true)
@@ -156,6 +183,61 @@ compose.App(function()
               scroll.value =
                   scroll.value + direction
             end)
+          )
+        end),
+
+        compose.RecomposeScope("mouseProbe", function()
+          return compose.Column({
+              compose.Text("MOUSE EVENTS"),
+
+              components.EventConsumer({
+                onClick = function(event)
+                    mouseEvent.value = "handled touch"
+                    mouseDetails.value =
+                        string.format(
+                          "x %d y %d button %s",
+                          event.screenX,
+                          event.screenY,
+                          tostring(event.button)
+                        )
+                  end,
+
+                content = function(state)
+                  local background =
+                      state.pressed
+                      and 0x6BD5FF
+                      or 0x245A73
+
+                  local foreground =
+                      state.pressed
+                      and 0x101418
+                      or 0xFFFFFF
+
+                  return compose.Box({
+                      compose.Text(
+                        "Touch target",
+                        compose.Modifier:foreground(
+                          foreground
+                        )
+                      ),
+                    },
+                    state.modifier
+                    :padding(1)
+                    :background(background)
+                  )
+                end,
+              }),
+
+              compose.Text(
+                "Last: " .. mouseEvent.value
+              ),
+
+              compose.Text(mouseDetails.value),
+            },
+            compose.Modifier
+            :weight(1)
+            :padding(1)
+            :border()
           )
         end),
       },

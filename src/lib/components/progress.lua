@@ -1,4 +1,5 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local progress = {}
 
@@ -27,6 +28,7 @@ function progress.Progress(options)
 
   local value = clamp(options.value)
   local orientation = options.orientation or "horizontal"
+  local colors = colorStyle.current()
 
   assert(
     orientation == "horizontal"
@@ -37,11 +39,11 @@ function progress.Progress(options)
   local fillColor =
       options.fillColor
       or options.color
-      or 0x66CCFF
+      or colors.primary
 
   local emptyColor =
       options.emptyColor
-      or 0x26313A
+      or colors.surfaceVariant
 
   local tiles = {}
 
@@ -124,7 +126,7 @@ function progress.Progress(options)
         :align("center", "center")
         :foreground(
           options.labelColor
-          or 0xFFFFFF
+          or colors.onSurface
         )
 
     if options.labelContrast then

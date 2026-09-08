@@ -1,4 +1,5 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local toggle = {}
 
@@ -38,6 +39,22 @@ function toggle.Toggle(
   modifier =
       modifier
       or compose.Modifier
+
+  local hasForeground = false
+
+  for _, element in ipairs(modifier.elements or {}) do
+    if element.type == "foreground" then
+      hasForeground = true
+      break
+    end
+  end
+
+  if not hasForeground then
+    modifier =
+        modifier:foreground(
+          colorStyle.current().foreground
+        )
+  end
 
   local indicator =
       checked

@@ -7,9 +7,11 @@ local debug = require("lib.compose.debug")
 local renderer = {}
 
 local previousFrame = nil
+local previousScrollRegions = nil
 local lastMetrics = {
   changedCells = 0,
   gpuWrites = 0,
+  scrollBlit = false,
   foregroundChanges = 0,
   backgroundChanges = 0,
   cells = 0,
@@ -153,20 +155,20 @@ local function getBorder(node)
   return nil
 end
 
-local function hasVerticalScroll(node)
+local function getVerticalScroll(node)
   if not node.modifier then
-    return false
+    return nil
   end
 
   for _, element in ipairs(
     node.modifier.elements or {}
   ) do
     if element.type == "verticalScroll" then
-      return true
+      return element
     end
   end
 
-  return false
+  return nil
 end
 
 local function intersectClip(a, b)
@@ -661,7 +663,7 @@ local function drawNode(
   local childClip =
       clip
 
-  if hasVerticalScroll(node) then
+  if getVerticalScroll(node) then
     local viewport = {
       left =
           measured.contentX,
@@ -715,6 +717,162 @@ local function drawNode(
       originalContentY
 end
 
+local function collectScrollRegions(
+    measured,
+    parentX,
+    parentY,
+    clip,
+    regions
+)
+  local node = measured.node
+
+  if not isVisible(node) then
+    return
+  end
+
+  local absoluteX =
+      parentX + measured.x
+
+  local absoluteY =
+      parentY + measured.y
+
+  local childClip = clip
+  local verticalScroll =
+      getVerticalScroll(node)
+
+  if verticalScroll then
+    local viewport = {
+      left = absoluteX + measured.contentX,
+      top = absoluteY + measured.contentY,
+      right =
+          absoluteX
+          + measured.contentX
+          + measured.contentWidth
+          - 1,
+      bottom =
+          absoluteY
+          + measured.contentY
+          + measured.contentHeight
+          - 1,
+    }
+
+    local visible =
+        intersectClip(
+          clip,
+          viewport
+        )
+
+    if
+        visible
+        and visible.left == viewport.left
+        and visible.top == viewport.top
+        and visible.right == viewport.right
+        and visible.bottom == viewport.bottom
+    then
+      regions[#regions + 1] = {
+        state = verticalScroll.state,
+        left = viewport.left,
+        top = viewport.top,
+        width = measured.contentWidth,
+        height = measured.contentHeight,
+        offset = verticalScroll.state:getValue(),
+      }
+    end
+
+    childClip = visible
+  end
+
+  if not childClip then
+    return
+  end
+
+  for _, child in ipairs(measured.children) do
+    collectScrollRegions(
+      child,
+      absoluteX,
+      absoluteY,
+      childClip,
+      regions
+    )
+  end
+end
+
+local function sameScrollRegion(current, previous)
+  return
+      current.state == previous.state
+      and current.left == previous.left
+      and current.top == previous.top
+      and current.width == previous.width
+      and current.height == previous.height
+end
+
+local function applyScrollBlit(gpu, regions)
+  if
+      not previousFrame
+      or not previousScrollRegions
+      or #regions ~= 1
+      or #previousScrollRegions ~= 1
+  then
+    return false
+  end
+
+  local current = regions[1]
+  local previous = previousScrollRegions[1]
+
+  if not sameScrollRegion(current, previous) then
+    return false
+  end
+
+  local delta =
+      current.offset - previous.offset
+
+  if
+      delta == 0
+      or delta ~= math.floor(delta)
+      or math.abs(delta) >= current.height
+  then
+    return false
+  end
+
+  local sourceY
+  local copyHeight
+  local translationY = -delta
+
+  if delta > 0 then
+    sourceY = current.top + delta
+    copyHeight = current.height - delta
+  else
+    sourceY = current.top
+    copyHeight = current.height + delta
+  end
+
+  local ok, result =
+      pcall(
+        gpu.copy,
+        current.left,
+        sourceY,
+        current.width,
+        copyHeight,
+        0,
+        translationY
+      )
+
+  if not ok or result == false then
+    return false
+  end
+
+  framebuffer.shift(
+    previousFrame,
+    current.left,
+    current.top,
+    current.width,
+    current.height,
+    delta
+  )
+
+  return true
+end
+
 function renderer.render(tree, options)
   local gpu =
       options
@@ -725,12 +883,38 @@ function renderer.render(tree, options)
   height =
       getResolution(gpu)
 
+  if
+      previousFrame
+      and (
+        previousFrame.width ~= width
+        or previousFrame.height ~= height
+      )
+  then
+    previousFrame = nil
+    previousScrollRegions = nil
+  end
+
   local measured =
       layout.measure(
         tree,
         width,
         height
       )
+
+  local scrollRegions = {}
+
+  collectScrollRegions(
+    measured,
+    0,
+    0,
+    {
+      left = 1,
+      top = 1,
+      right = width,
+      bottom = height,
+    },
+    scrollRegions
+  )
 
   local frame = framebuffer.create(width, height)
 
@@ -747,6 +931,12 @@ function renderer.render(tree, options)
       bottom = height,
     }
   )
+
+  local scrollBlit =
+      applyScrollBlit(
+        gpu,
+        scrollRegions
+      )
 
   local presentMetrics =
       framebuffer.present(
@@ -769,6 +959,7 @@ function renderer.render(tree, options)
   lastMetrics = {
     changedCells = presentMetrics.changedCells,
     gpuWrites = presentMetrics.gpuWrites,
+    scrollBlit = scrollBlit,
     foregroundChanges = presentMetrics.foregroundChanges,
     backgroundChanges = presentMetrics.backgroundChanges,
     cells = presentMetrics.cells,
@@ -778,6 +969,9 @@ function renderer.render(tree, options)
 
   previousFrame =
       frame
+
+  previousScrollRegions =
+      scrollRegions
 
   return measured
 end
@@ -794,10 +988,12 @@ end
 
 function renderer.reset(options)
   previousFrame = nil
+  previousScrollRegions = nil
 
   lastMetrics = {
     changedCells = 0,
     gpuWrites = 0,
+    scrollBlit = false,
     foregroundChanges = 0,
     backgroundChanges = 0,
     cells = 0,
@@ -814,16 +1010,18 @@ function renderer.reset(options)
   height =
       getResolution(gpu)
 
-  gpu.setForeground(0xFFFFFF)
-  gpu.setBackground(0x000000)
+  if not options or options.clear ~= false then
+    gpu.setForeground(0xFFFFFF)
+    gpu.setBackground(0x000000)
 
-  gpu.fill(
-    1,
-    1,
-    width,
-    height,
-    " "
-  )
+    gpu.fill(
+      1,
+      1,
+      width,
+      height,
+      " "
+    )
+  end
 end
 
 return renderer

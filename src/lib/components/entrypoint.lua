@@ -2,46 +2,12 @@ local compose = require("lib.compose.init")
 local scaffold = require("lib.components.scaffold")
 local topAppBar = require("lib.components.top_app_bar")
 local commandBar = require("lib.components.command_bar")
+local colorStyle = require("lib.components.color_style")
 
 -- Uncomment while debugging recomposition: require("lib.compose.debug").setEnabled(true)
 
 local entrypoint = {}
 local HARDWARE_REFRESH_SECONDS = 3
-
-local DEFAULT_COLORS = {
-  background = 0x101418,
-  surface = 0x1A2228,
-  foreground = 0xE2E8F0,
-  muted = 0x8B96A3,
-  action = 0x6BD5FF,
-  danger = 0xE06C75,
-}
-
-local function mergeColors(colors)
-  local result = {}
-
-  for key, value in pairs(DEFAULT_COLORS) do
-    result[key] = value
-  end
-
-  for key, value in pairs(colors or {}) do
-    result[key] = value
-  end
-
-  if result.foreground == DEFAULT_COLORS.foreground
-      and result.text ~= nil
-  then
-    result.foreground = result.text
-  end
-
-  if result.action == DEFAULT_COLORS.action
-      and result.primary ~= nil
-  then
-    result.action = result.primary
-  end
-
-  return result
-end
 
 local function formatUptime(seconds)
   seconds = math.floor(seconds)
@@ -97,7 +63,12 @@ function entrypoint.Entrypoint(options)
   )
 
   local colors =
-      mergeColors(options.colors)
+      colorStyle.create(
+        options.colorStyle
+        or options.colors
+      )
+
+  return colorStyle.with(colors, function()
 
   local navigation =
       options.navigation
@@ -151,6 +122,8 @@ function entrypoint.Entrypoint(options)
       compose.rendererMetrics()
 
   local context = {
+    colorStyle = colors,
+    colors = colors,
     navigation = navigation,
     uptime = compose.uptime(),
     uptimeRevision = uptimeRevision,
@@ -197,7 +170,7 @@ function entrypoint.Entrypoint(options)
       title = options.title,
       trailing = options.trailing
         or "│ uptime " .. formatUptime(context.uptime),
-      colors = colors,
+      colorStyle = colors,
       context = context,
       actions = options.topBarActions,
       background = options.surface
@@ -225,7 +198,7 @@ function entrypoint.Entrypoint(options)
           label = "│ " .. memoryLabel,
           color = colors.muted,
         },
-      colors = colors,
+      colorStyle = colors,
       background = options.surface
         or colors.surface,
     })
@@ -253,6 +226,7 @@ function entrypoint.Entrypoint(options)
       or defaultBottomBar,
     overlay = overlay,
   })
+  end)
 end
 
 return entrypoint

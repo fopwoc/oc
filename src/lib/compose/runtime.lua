@@ -711,6 +711,144 @@ local function isLocalInput(item)
   return getPlatform().isLocalInput(item)
 end
 
+local function pointerEvent(item, hit, inside)
+  return {
+    x = hit
+      and item.x - hit.x + 1
+      or item.x,
+    y = hit
+      and item.y - hit.y + 1
+      or item.y,
+
+    screenX = item.x,
+    screenY = item.y,
+
+    button = item.button,
+    player = item.player,
+    screen = item.screen,
+    inside = inside,
+  }
+end
+
+local function containsHit(hit, x, y)
+  return
+      x >= hit.x
+      and y >= hit.y
+      and x < hit.x + hit.width
+      and y < hit.y + hit.height
+end
+
+local function processTouch(item)
+  local hit =
+      inputTarget.find(
+        composition.layout,
+        item.x,
+        item.y,
+        "touch"
+      )
+
+  if
+      not hit
+      or not hit.modifier
+  then
+    return
+  end
+
+  if
+      hit.modifier.onPress
+      or hit.modifier.onRelease
+  then
+    composition.pointer = {
+      hit = hit,
+      button = item.button,
+      player = item.player,
+      screen = item.screen,
+    }
+
+    if hit.modifier.onPress then
+      hit.modifier.onPress(
+        pointerEvent(item, hit, true)
+      )
+    end
+  elseif hit.modifier.onClick then
+    hit.modifier.onClick(
+      pointerEvent(item, hit, true)
+    )
+  end
+end
+
+local function processDropSignal(item)
+  local pointer = composition.pointer
+
+  if pointer
+      and pointer.screen == item.screen
+      and pointer.button == item.button
+      and (
+        pointer.player == nil
+        or pointer.player == item.player
+      )
+  then
+    local inside =
+        containsHit(
+          pointer.hit,
+          item.x,
+          item.y
+        )
+
+    if pointer.hit.modifier.onRelease then
+      pointer.hit.modifier.onRelease(
+        pointerEvent(item, pointer.hit, inside)
+      )
+    elseif inside
+        and pointer.hit.modifier.onClick
+    then
+      pointer.hit.modifier.onClick(
+        pointerEvent(item, pointer.hit, true)
+      )
+    end
+
+    composition.pointer = nil
+  end
+
+  local hit =
+      inputTarget.find(
+        composition.layout,
+        item.x,
+        item.y,
+        "drop"
+      )
+
+  if
+      hit
+      and hit.modifier
+      and hit.modifier.onDrop
+  then
+    hit.modifier.onDrop(
+      pointerEvent(item, hit, true)
+    )
+  end
+end
+
+local function processDragSignal(item)
+  local hit =
+      inputTarget.find(
+        composition.layout,
+        item.x,
+        item.y,
+        "drag"
+      )
+
+  if
+      hit
+      and hit.modifier
+      and hit.modifier.onDrag
+  then
+    hit.modifier.onDrag(
+      pointerEvent(item, hit, true)
+    )
+  end
+end
+
 local function processInput()
   for _, item in ipairs(
     input.drain()
@@ -738,31 +876,7 @@ local function processInput()
               false
         end
       elseif item.type == "touch" then
-        local hit =
-            inputTarget.find(
-              composition.layout,
-              item.x,
-              item.y,
-              "touch"
-            )
-
-        if
-            hit
-            and hit.modifier
-            and hit.modifier.onClick
-        then
-          hit.modifier.onClick({
-            x = hit.localX,
-            y = hit.localY,
-
-            screenX = item.x,
-            screenY = item.y,
-
-            button = item.button,
-            player = item.player,
-            screen = item.screen,
-          })
-        end
+        processTouch(item)
       elseif item.type == "scroll" then
         local hit =
             inputTarget.find(
@@ -807,9 +921,30 @@ local function pullInput(timeout)
     signal
   )
 
-  input.pushRaw(
-    table.unpack(signal)
-  )
+  local name = signal[1]
+
+  if name == "drag" or name == "drop" then
+    local item = {
+      type = name,
+      screen = signal[2],
+      x = signal[3],
+      y = signal[4],
+      button = signal[5],
+      player = signal[6],
+    }
+
+    if isLocalInput(item) then
+      if name == "drag" then
+        processDragSignal(item)
+      else
+        processDropSignal(item)
+      end
+    end
+  else
+    input.pushRaw(
+      table.unpack(signal)
+    )
+  end
 end
 
 
@@ -944,6 +1079,7 @@ function runtime.App(content, render, options)
     dirty = true,
     layoutDirty = true,
     running = true,
+    pointer = nil,
     startedAt = startedAt,
     metrics = {
       windowStarted = startedAt,

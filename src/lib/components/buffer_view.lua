@@ -1,9 +1,15 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local bufferView = {}
 
 local function defaultItem(value)
-  return compose.Text(value)
+  return compose.Text(
+    value,
+    compose.Modifier:foreground(
+      colorStyle.current().foreground
+    )
+  )
 end
 
 function bufferView.BufferView(options)
@@ -78,7 +84,12 @@ function bufferView.BufferView(options)
     if type(options.empty) == "function" then
       children[#children + 1] = options.empty()
     else
-      children[#children + 1] = compose.Text(options.empty)
+      children[#children + 1] = compose.Text(
+        options.empty,
+        compose.Modifier:foreground(
+          colorStyle.current().muted
+        )
+      )
     end
   end
 

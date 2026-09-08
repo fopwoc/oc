@@ -1,12 +1,7 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local commandBar = {}
-
-local DEFAULT_COLORS = {
-  foreground = 0xD8DEE9,
-  muted = 0x7F8C98,
-  action = 0x66CCFF,
-}
 
 local function appendAction(children, action, colors)
   if action == nil then
@@ -86,7 +81,12 @@ end
 function commandBar.CommandBar(options)
   options = options or {}
 
-  local colors = options.colors or DEFAULT_COLORS
+  local colors =
+      (options.colorStyle or options.colors)
+      and colorStyle.create(
+        options.colorStyle or options.colors
+      )
+      or colorStyle.current()
   local children = {}
 
   for _, action in ipairs(options.hints or {}) do

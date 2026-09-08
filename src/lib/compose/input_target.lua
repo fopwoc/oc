@@ -60,6 +60,14 @@ local function findInputModifier(
       then
         return element
       end
+    elseif eventType == "drag" then
+      if element.type == "draggable" then
+        return element
+      end
+    elseif eventType == "drop" then
+      if element.type == "draggable" then
+        return element
+      end
     end
   end
 

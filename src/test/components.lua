@@ -1,14 +1,29 @@
 local compose = require("lib.compose.init")
 local components = require("lib.components.init")
 
-local colors = {
+local colors = components.ColorStyle({
   background = 0x101418,
   surface = 0x1A2228,
+  surfaceVariant = 0x2A343C,
   primary = 0x6BD5FF,
   text = 0xE2E8F0,
   muted = 0x8B96A3,
+  good = 0x66CC88,
+  bad = 0xDD6666,
+  badContainer = 0x552222,
   warning = 0xE5C36A,
-}
+})
+
+local function paletteText(value, foreground, modifier)
+  modifier = modifier or compose.Modifier
+
+  return compose.Text(
+    value,
+    modifier:foreground(
+      foreground or colors.text
+    )
+  )
+end
 
 local function page(children)
   local scrollState =
@@ -161,12 +176,12 @@ compose.App(function()
   local function cardsPage()
     return page({
       section("Card Variants", {
-        components.Card({compose.Text("Normal")}),
+        components.Card({paletteText("Normal")}),
 
         compose.Spacer(compose.Modifier:height(1)),
 
         components.Card(
-          {compose.Text("Rounded")},
+          {paletteText("Rounded")},
           nil,
           {
             characters = {
@@ -185,7 +200,7 @@ compose.App(function()
         compose.Spacer(compose.Modifier:height(1)),
 
         components.Card(
-          {compose.Text("Heavy")},
+          {paletteText("Heavy")},
           nil,
           {
             characters = {
@@ -204,7 +219,7 @@ compose.App(function()
         compose.Spacer(compose.Modifier:height(1)),
 
         components.Card(
-          {compose.Text("ASCII")},
+          {paletteText("ASCII")},
           nil,
           {characters = "*"}
         ),
@@ -214,7 +229,7 @@ compose.App(function()
 
       section("Width", {
         components.Card(
-          {compose.Text("Full-width surface")},
+          {paletteText("Full-width surface")},
           compose.Modifier:fillMaxWidth()
         ),
       }),
@@ -253,6 +268,17 @@ compose.App(function()
           end,
           compose.Modifier:foreground(colors.muted)
         ),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Button(
+          "Cell button",
+          function()
+            clicks.value = clicks.value + 1
+          end,
+          nil,
+          components.ButtonStyles.cell
+        ),
       }),
     })
   end
@@ -284,7 +310,7 @@ compose.App(function()
 
         compose.Spacer(compose.Modifier:height(1)),
 
-        compose.Text("Radio"),
+        paletteText("Radio"),
 
         components.Toggle(
           "Option A",
@@ -335,8 +361,9 @@ compose.App(function()
   local function dialogsPage()
     return page({
       section("Dialog Variants", {
-        compose.Text(
-          "Dialogs occupy the overlay layer and block input below."
+        paletteText(
+          "Dialogs occupy the overlay layer and block input below.",
+          colors.muted
         ),
 
         compose.Spacer(compose.Modifier:height(1)),
@@ -404,7 +431,7 @@ compose.App(function()
           appearance = "alternating",
           cellPadding = 0,
           oddBackground = colors.surface,
-          evenBackground = 0x2A343C,
+          evenBackground = colors.surfaceVariant,
           cell = headerCell,
         }),
       }),
@@ -500,7 +527,7 @@ compose.App(function()
           labelContrast = true,
           labelColor = colors.warning,
           modifier = compose.Modifier:fillMaxWidth(),
-          fillColor = colors.success,
+          fillColor = colors.good,
           emptyColor = colors.surface,
         }),
 
@@ -514,7 +541,7 @@ compose.App(function()
               labelContrast = true,
               width = 7,
               height = 6,
-              fillColor = colors.success,
+              fillColor = colors.good,
               emptyColor = colors.surface,
             }),
 
@@ -575,7 +602,7 @@ compose.App(function()
           },
           labelWidth = 2,
           showLabels = false,
-          fillColor = colors.success,
+          fillColor = colors.good,
           emptyColor = colors.surface,
           modifier = compose.Modifier:fillMaxWidth(),
         }),
@@ -646,17 +673,17 @@ compose.App(function()
           content = function()
             return components.BufferView({
               buffer = buffer,
-              empty = "Waiting for updates...",
+              empty = paletteText(
+                "Waiting for updates...",
+                colors.muted
+              ),
               modifier = compose.Modifier
                 :height(5)
                 :fillMaxWidth()
                 :border(colors.muted)
                 :background(colors.surface),
               item = function(value)
-                return compose.Text(
-                  value,
-                  compose.Modifier:foreground(colors.text)
-                )
+                return paletteText(value)
               end,
             })
           end,
@@ -671,9 +698,9 @@ compose.App(function()
             :foreground(colors.muted),
           content = function()
             return compose.Column({
-              compose.Text("Fixed capacity: 24 records"),
-              compose.Text("Oldest records are overwritten"),
-              compose.Text("Hidden content is not rendered"),
+              paletteText("Fixed capacity: 24 records"),
+              paletteText("Oldest records are overwritten"),
+              paletteText("Hidden content is not rendered"),
             })
           end,
         }),
@@ -697,7 +724,7 @@ compose.App(function()
   return components.Entrypoint({
     start = "gallery",
     title = "Components",
-    colors = colors,
+    colorStyle = colors,
     routes = pages,
     hints = hints,
     service = "select a component",
@@ -709,8 +736,8 @@ compose.App(function()
       return components.Dialog(
         "WARNING",
         {
-          compose.Text("LCR #4 is not responding."),
-          compose.Text("Underlying controls are blocked."),
+          paletteText("LCR #4 is not responding."),
+          paletteText("Underlying controls are blocked."),
           compose.Spacer(compose.Modifier:height(1)),
           compose.Row({
             components.Button(
@@ -733,7 +760,7 @@ compose.App(function()
         },
         compose.Modifier
         :width(40)
-        :background(0x552222)
+        :background(colors.badContainer)
       )
     end,
   })

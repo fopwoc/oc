@@ -311,6 +311,80 @@ function framebuffer.fillBackground(
   end
 end
 
+function framebuffer.shift(
+    frame,
+    left,
+    top,
+    width,
+    height,
+    delta
+)
+  if
+      delta == 0
+      or width <= 0
+      or height <= 0
+  then
+    return
+  end
+
+  local amount = math.abs(delta)
+
+  if amount >= height then
+    for y = top, top + height - 1 do
+      for x = left, left + width - 1 do
+        local i = index(frame.width, x, y)
+
+        frame.chars[i] = false
+        frame.foreground[i] = nil
+        frame.background[i] = nil
+      end
+    end
+
+    return
+  end
+
+  local function copyRow(sourceY, targetY)
+    for x = left, left + width - 1 do
+      local source = index(frame.width, x, sourceY)
+      local target = index(frame.width, x, targetY)
+
+      frame.chars[target] = frame.chars[source]
+      frame.foreground[target] = frame.foreground[source]
+      frame.background[target] = frame.background[source]
+    end
+  end
+
+  if delta > 0 then
+    for y = top, top + height - amount - 1 do
+      copyRow(y + amount, y)
+    end
+
+    for y = top + height - amount, top + height - 1 do
+      for x = left, left + width - 1 do
+        local i = index(frame.width, x, y)
+
+        frame.chars[i] = false
+        frame.foreground[i] = nil
+        frame.background[i] = nil
+      end
+    end
+  else
+    for y = top + height - 1, top + amount, -1 do
+      copyRow(y - amount, y)
+    end
+
+    for y = top, top + amount - 1 do
+      for x = left, left + width - 1 do
+        local i = index(frame.width, x, y)
+
+        frame.chars[i] = false
+        frame.foreground[i] = nil
+        frame.background[i] = nil
+      end
+    end
+  end
+end
+
 function framebuffer.tint(
     frame,
     x,

@@ -2,6 +2,7 @@ local components = {}
 
 local card = require("lib.components.card")
 local button = require("lib.components.button")
+local eventConsumer = require("lib.components.event_consumer")
 local toggle = require("lib.components.toggle")
 local dialog = require("lib.components.dialog")
 local scaffold = require("lib.components.scaffold")
@@ -9,6 +10,7 @@ local topAppBar = require("lib.components.top_app_bar")
 local commandBar = require("lib.components.command_bar")
 local grid = require("lib.components.grid")
 local entrypoint = require("lib.components.entrypoint")
+local colorStyle = require("lib.components.color_style")
 local accordion = require("lib.components.accordion")
 local bufferView = require("lib.components.buffer_view")
 local progress = require("lib.components.progress")
@@ -20,6 +22,12 @@ components.Card =
 
 components.Button =
     button.Button
+
+components.ButtonStyles =
+    button.styles
+
+components.EventConsumer =
+    eventConsumer.EventConsumer
 
 components.Toggle =
     toggle.Toggle
@@ -44,6 +52,9 @@ components.Grid =
 
 components.Entrypoint =
     entrypoint.Entrypoint
+
+components.ColorStyle =
+    colorStyle.ColorStyle
 
 components.Accordion =
     accordion.Accordion

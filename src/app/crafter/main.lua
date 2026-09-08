@@ -34,7 +34,7 @@ local CONFIG_EXAMPLE_PATH =
     )
 
 
-local colors = {
+local colors = components.ColorStyle({
   background = 0x111418,
   surface = 0x1A2026,
   border = 0x36414A,
@@ -43,10 +43,10 @@ local colors = {
   text = 0xD8DEE9,
   muted = 0x7F8C98,
 
-  success = 0x66CC88,
+  good = 0x66CC88,
   warning = 0xDDBB66,
-  danger = 0xDD6666,
-}
+  bad = 0xDD6666,
+})
 
 
 local function loadConfig()
@@ -89,7 +89,7 @@ end
 local function statusInfo(target)
   if target.status == "crafting" then
     return "CRAFTING",
-        colors.success
+        colors.good
   end
 
   if target.status == "cooldown" then
@@ -307,7 +307,7 @@ compose.App(function()
           {
             color =
                 target.status == "crafting"
-                and colors.success
+                and colors.good
                 or colors.border,
           }
         )
@@ -327,7 +327,7 @@ compose.App(function()
 
   return components.Entrypoint({
     title = "Crafter",
-    colors = colors,
+    colorStyle = colors,
     service = "scheduler",
     topBarActions = function()
       return compose.Text(
@@ -336,8 +336,8 @@ compose.App(function()
         or "● PAUSED",
         compose.Modifier:foreground(
           playing.value
-          and colors.success
-          or colors.danger
+          and colors.good
+          or colors.bad
         )
       )
     end,
@@ -352,7 +352,7 @@ compose.App(function()
         compose.Modifier:foreground(
           playing.value
           and colors.warning
-          or colors.success
+          or colors.good
         )
       )
     end,

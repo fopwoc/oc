@@ -261,16 +261,40 @@ end
 
 -- Input
 
-function Modifier:clickable(onClick)
+function Modifier:clickable(onClick, options)
   assert(
     type(onClick) == "function",
     "clickable() requires a function"
   )
 
+  options = options or {}
+
   return append(self, {
     phase = "input",
     type = "clickable",
     onClick = onClick,
+    onPress = options.onPress,
+    onRelease = options.onRelease,
+  })
+end
+
+function Modifier:draggable(onDrag, onDrop)
+  assert(
+    type(onDrag) == "function",
+    "draggable() requires an onDrag function"
+  )
+
+  assert(
+    onDrop == nil
+      or type(onDrop) == "function",
+    "draggable() onDrop must be a function"
+  )
+
+  return append(self, {
+    phase = "input",
+    type = "draggable",
+    onDrag = onDrag,
+    onDrop = onDrop,
   })
 end
 

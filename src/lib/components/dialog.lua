@@ -1,5 +1,6 @@
 local compose = require("lib.compose.init")
 local card = require("lib.components.card")
+local colorStyle = require("lib.components.color_style")
 
 local dialog = {}
 
@@ -12,11 +13,16 @@ function dialog.Dialog(
       modifier
       or compose.Modifier
 
+  local colors = colorStyle.current()
+
   local content = {}
 
   if title then
     content[#content + 1] =
-        compose.Text(tostring(title))
+        compose.Text(
+          tostring(title),
+          compose.Modifier:foreground(colors.onSurface)
+        )
 
     content[#content + 1] =
         compose.Spacer(
@@ -43,7 +49,7 @@ function dialog.Dialog(
     compose.Modifier
       :fillMaxWidth()
       :fillMaxHeight()
-      :scrim(0x000000, 0.55)
+      :scrim(colors.scrim, colors.scrimAlpha)
       :clickable(function()
       -- Modal input barrier.
     end)

@@ -7,7 +7,7 @@ local telemetry = require("lib.telemetry.receiver")
 local stateModule = require("app.dashboard.state")
 
 
-local colors = {
+local colors = components.ColorStyle({
   background = 0x111418,
   surface = 0x1A2026,
   border = 0x36414A,
@@ -16,10 +16,10 @@ local colors = {
   text = 0xD8DEE9,
   muted = 0x7F8C98,
 
-  success = 0x66CC88,
+  good = 0x66CC88,
   warning = 0xDDBB66,
-  danger = 0xDD6666,
-}
+  bad = 0xDD6666,
+})
 
 
 local STALE_AFTER =
@@ -42,7 +42,7 @@ local function sourceStatus(source)
 
   if age >= OFFLINE_AFTER then
     return "OFFLINE",
-        colors.danger
+        colors.bad
   end
 
   if age >= STALE_AFTER then
@@ -51,7 +51,7 @@ local function sourceStatus(source)
   end
 
   return "ONLINE",
-      colors.success
+      colors.good
 end
 
 
@@ -246,7 +246,7 @@ compose.App(function()
 
       local activityColor =
           data.playing
-          and colors.success
+          and colors.good
           or colors.warning
 
       if status ~= "ONLINE" then
@@ -259,11 +259,11 @@ compose.App(function()
         colored(activity, activityColor),
         colored(source.source, colors.muted),
         metric(data.targets),
-        metric(data.crafting, colors.success),
+        metric(data.crafting, colors.good),
         metric(data.waiting),
         metric(data.requests),
-        metric(data.completed, colors.success),
-        metric(data.canceled, colors.danger),
+        metric(data.completed, colors.good),
+        metric(data.canceled, colors.bad),
         metric(data.cooldown, colors.warning),
         colored(formatAge(age), colors.muted),
         colored(
@@ -329,7 +329,7 @@ compose.App(function()
 
   return components.Entrypoint({
     title = "Dashboard",
-    colors = colors,
+    colorStyle = colors,
     service = "Telemetry :4242",
     topBarActions = function()
       return compose.Text(

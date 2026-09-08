@@ -1,5 +1,7 @@
 local compose = require("lib.compose.init")
 local dialog = require("lib.components.dialog")
+local button = require("lib.components.button")
+local colorStyle = require("lib.components.color_style")
 
 local scaffold = {}
 
@@ -43,6 +45,8 @@ function scaffold.Scaffold(options)
     options.content ~= nil,
     "Scaffold requires a content slot"
   )
+
+  local colors = colorStyle.current()
 
   local quitRequested =
       compose.remember(false)
@@ -134,39 +138,40 @@ function scaffold.Scaffold(options)
         dialog.Dialog(
           "QUIT",
           {
-            compose.Text("Exit application?"),
+            compose.Text(
+              "Exit application?",
+              compose.Modifier:foreground(colors.onSurface)
+            ),
 
             compose.Spacer(
               compose.Modifier:height(1)
             ),
 
             compose.Row({
-              compose.Text(
-                "[ YES ]",
-                compose.Modifier
-                :foreground(0xDD6666)
-                :clickable(function()
+              button.Button(
+                "YES",
+                function()
                   compose.quit()
-                end)
+                end,
+                compose.Modifier:foreground(colors.bad)
               ),
 
               compose.Spacer(
                 compose.Modifier:width(2)
               ),
 
-              compose.Text(
-                "[ NO ]",
-                compose.Modifier
-                :foreground(0x66CC88)
-                :clickable(function()
+              button.Button(
+                "NO",
+                function()
                   quitRequested.value = false
-                end)
+                end,
+                compose.Modifier:foreground(colors.good)
               ),
             }),
           },
           compose.Modifier
           :width(28)
-          :background(0x222222)
+          :background(colors.surfaceVariant)
         )
   end
 

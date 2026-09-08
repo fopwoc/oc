@@ -1,4 +1,5 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local accordion = {}
 
@@ -46,11 +47,32 @@ function accordion.Accordion(options)
       options.headerModifier
       or compose.Modifier
 
+  local headerForeground =
+      colorStyle.current().foreground
+
+  local hasForeground = false
+
+  for _, element in ipairs(headerModifier.elements or {}) do
+    if element.type == "foreground" then
+      hasForeground = true
+      headerForeground = element.color
+      break
+    end
+  end
+
+  if not hasForeground then
+    headerModifier =
+        headerModifier:foreground(
+          colorStyle.current().foreground
+        )
+  end
+
   local header =
       compose.Row({
         compose.Text(
           (expanded and "^ " or "v ")
-          .. options.title
+          .. options.title,
+          compose.Modifier:foreground(headerForeground)
         ),
 
         compose.Spacer(
@@ -58,7 +80,8 @@ function accordion.Accordion(options)
         ),
 
         compose.Text(
-          expanded and "^" or "v"
+          expanded and "^" or "v",
+          compose.Modifier:foreground(headerForeground)
         ),
       },
       headerModifier

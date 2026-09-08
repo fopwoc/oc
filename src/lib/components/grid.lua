@@ -1,9 +1,7 @@
 local compose = require("lib.compose.init")
+local colorStyle = require("lib.components.color_style")
 
 local grid = {}
-
-local DEFAULT_BORDER_COLOR = 0x36414A
-local DEFAULT_CELL_BACKGROUND = 0x1A2026
 
 local function sharedBorderCharacters(
     row,
@@ -56,7 +54,7 @@ local function countColumns(rows)
   return columns
 end
 
-local function resolveCell(options, value, row, column)
+local function resolveCell(options, value, row, column, colors)
   if options.cell then
     local node = options.cell(value, row, column)
 
@@ -76,7 +74,10 @@ local function resolveCell(options, value, row, column)
     return value
   end
 
-  return compose.Text(tostring(value))
+  return compose.Text(
+    tostring(value),
+    compose.Modifier:foreground(colors.onSurface)
+  )
 end
 
 function grid.Grid(options)
@@ -105,6 +106,8 @@ function grid.Grid(options)
   local columns =
       options.columns
       or countColumns(options.rows)
+
+  local colors = colorStyle.current()
 
   local specifications = {}
 
@@ -190,7 +193,7 @@ function grid.Grid(options)
         cellModifier =
             cellModifier:border(
               options.borderColor
-              or DEFAULT_BORDER_COLOR,
+              or colors.border,
               options.borderCharacters
               or sharedBorderCharacters(
                 rowIndex,
@@ -202,7 +205,11 @@ function grid.Grid(options)
       elseif appearance == "alternating" then
         local background =
             options.cellBackground
-            or DEFAULT_CELL_BACKGROUND
+            or (
+              rowIndex % 2 == 0
+              and colors.surfaceVariant
+              or colors.surface
+            )
 
         background =
             rowIndex % 2 == 0
@@ -236,12 +243,13 @@ function grid.Grid(options)
         "Grid alignment must be left, center, or right"
       )
 
-      local cell =
+          local cell =
           resolveCell(
             options,
             values[columnIndex],
             rowIndex,
-            columnIndex
+            columnIndex,
+            colors
           )
 
       local alignedChildren = {}

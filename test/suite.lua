@@ -1,6 +1,7 @@
 for _, path in ipairs({
   "test/engine.lua",
   "test/color.lua",
+  "test/color_style.lua",
   "src/test/ring_buffer.lua",
   "test/scroll.lua",
   "test/navigation_engine.lua",
