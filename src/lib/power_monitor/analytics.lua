@@ -1,5 +1,6 @@
 local ringBuffer = require("lib.compose.ring_buffer")
 local decimal = require("lib.power_monitor.decimal")
+local timeline = require("lib.timeline")
 
 local analytics = {}
 
@@ -254,26 +255,7 @@ local function historyStats(metric)
 end
 
 local function chartValues(metric, now, window)
-  local result = {}
-  local cutoff = now - window
-
-  if window <= 15 * MINUTE then
-    for _, sample in metric.live:iter() do
-      if sample.time >= cutoff then
-        result[#result + 1] = sample.fill
-      end
-    end
-
-    return result
-  end
-
-  for _, bucket in ipairs(historyValues(metric, true)) do
-    if bucket.time >= cutoff then
-      result[#result + 1] = bucket.fill
-    end
-  end
-
-  return result
+  return metric.timeline:values(window, now)
 end
 
 local function snapshot(metric, now)
@@ -359,9 +341,18 @@ function analytics.create(config, options)
     offline = true,
     error = "waiting for first sample",
     lastTime = nil,
+    timeline = timeline.create({
+      sampleSeconds = positive(
+        settings.sampleSeconds,
+        5
+      ),
+      reducer = "last",
+      state = persisted.timeline,
+    }),
     options = {
       shortWindow = positive(settings.shortWindow, 30),
       mediumWindow = positive(settings.mediumWindow, 300),
+      sampleSeconds = positive(settings.sampleSeconds, 5),
       drainEpsilon = positive(settings.drainEpsilon, 1),
       depletingEtaSeconds = positive(
         settings.depletingEtaSeconds,
@@ -380,9 +371,13 @@ function analytics.create(config, options)
   }
   local historyState = {
     buckets = metric.buckets,
+    timeline = metric.timeline:export(),
   }
 
   local function persist()
+    historyState.timeline =
+        metric.timeline:export()
+
     if options.persist then
       local ok, errorMessage =
           pcall(options.persist, historyState)
@@ -423,6 +418,8 @@ function analytics.create(config, options)
 
     addDuration(metric, time)
 
+    local shouldPersist = false
+
     if not metric.bucket
         or time >= metric.bucket.time + MINUTE
     then
@@ -443,7 +440,7 @@ function analytics.create(config, options)
       end
 
       historyState.buckets = metric.buckets
-      persist()
+      shouldPersist = true
     end
 
     local powerSample = {
@@ -455,6 +452,11 @@ function analytics.create(config, options)
       output = output,
       net = input - output,
     }
+
+    metric.timeline:commit(
+      time,
+      powerSample.fill
+    )
 
     metric.current = powerSample
     metric.live:push(powerSample)
@@ -469,6 +471,10 @@ function analytics.create(config, options)
     metric.bucket.inputSum = metric.bucket.inputSum + input
     metric.bucket.outputSum = metric.bucket.outputSum + output
     metric.lastTime = time
+
+    if shouldPersist then
+      persist()
+    end
 
     local currentState = metric.state
     local nextState = estimateState(

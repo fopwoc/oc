@@ -6,5 +6,6 @@ dofile("test/power_monitor.lua")
 dofile("test/collections.lua")
 dofile("test/crafter.lua")
 dofile("test/production_line.lua")
+dofile("test/query.lua")
 
 print("repository test suite: OK")

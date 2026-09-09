@@ -59,6 +59,46 @@ function format.number(value)
   return text
 end
 
+function format.grouped(value)
+  if value == nil then
+    return "--"
+  end
+
+  local text = tostring(value)
+  local sign = ""
+
+  if text:sub(1, 1) == "-" then
+    sign = "-"
+    text = text:sub(2)
+  end
+
+  if not text:match("^%d+$") then
+    return "--"
+  end
+
+  text = text:gsub("^0+", "")
+
+  if text == "" then
+    text = "0"
+  end
+
+  while true do
+    local formatted, count =
+        text:gsub(
+          "^(%d+)(%d%d%d)",
+          "%1,%2"
+        )
+
+    text = formatted
+
+    if count == 0 then
+      break
+    end
+  end
+
+  return sign .. text
+end
+
 function format.percent(value)
   if value == nil then
     return "--"
@@ -168,6 +208,16 @@ function format.energy(value)
       * (10 ^ (exponent - unitExponent)),
     unit
   )
+end
+
+function format.energyExact(value)
+  local grouped = format.grouped(value)
+
+  if grouped == "--" then
+    return grouped
+  end
+
+  return grouped .. " EU"
 end
 
 function format.amount(value, capacity)

@@ -1,8 +1,24 @@
-local computer = require("computer")
-
 local store = {}
 
-function store.create()
+local function clock()
+  return require("computer").uptime()
+end
+
+local function keyFor(packet)
+  local key =
+      packet.source .. ":" .. packet.id
+
+  if packet.address then
+    key = key .. ":" .. tostring(packet.address)
+  end
+
+  return key
+end
+
+function store.create(options)
+  options = options or {}
+
+  local now = options.clock or clock
   local instance = {
     sources = {},
   }
@@ -13,10 +29,7 @@ function store.create()
       "Telemetry packet must be a table"
     )
 
-    local key =
-        packet.source
-        .. ":"
-        .. packet.id
+    local key = keyFor(packet)
 
     local source = self.sources[key]
 
@@ -26,7 +39,7 @@ function store.create()
         id = packet.id,
         address = packet.address,
         distance = packet.distance,
-        firstSeen = computer.uptime(),
+        firstSeen = now(),
         lastSeen = 0,
         remoteUptime = 0,
         data = {},
@@ -37,7 +50,7 @@ function store.create()
 
     source.address = packet.address
     source.distance = packet.distance
-    source.lastSeen = computer.uptime()
+    source.lastSeen = now()
     source.remoteUptime = packet.uptime
     source.data = packet.data
 
@@ -45,9 +58,18 @@ function store.create()
   end
 
   function instance:get(source, id)
-    return self.sources[
-      source .. ":" .. id
-    ]
+    local prefix = source .. ":" .. id
+
+    for key, value in pairs(self.sources) do
+      if key == prefix
+          or key:sub(1, #prefix + 1)
+              == prefix .. ":"
+      then
+        return value
+      end
+    end
+
+    return nil
   end
 
   function instance:all()
@@ -72,7 +94,7 @@ function store.create()
   end
 
   function instance:age(source)
-    return computer.uptime() - source.lastSeen
+    return now() - source.lastSeen
   end
 
   return instance

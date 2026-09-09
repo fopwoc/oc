@@ -30,6 +30,12 @@ List installed targets or run one directly:
 ```sh
 ./run.lua --help
 ./run.lua test_components
+
+# Search the connected AE2 network
+./run.lua query metaitem.01
+
+# Install and forward arguments to the target
+./install.lua --run query metaitem.01
 ```
 ## Structure
 

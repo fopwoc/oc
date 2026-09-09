@@ -58,15 +58,38 @@ local function lineStateColor(state, colors)
   return colors.bad
 end
 
+local function crafterStateColor(state, colors)
+  if state == "ready"
+      or state == "cooldown"
+  then
+    return colors.good
+  end
+
+  if state == "requesting"
+      or state == "waiting"
+  then
+    return colors.warning
+  end
+
+  if state == "crafting" then
+    return colors.primary
+  end
+
+  return colors.bad
+end
+
+local function crafterState(state)
+  return tostring(state or "unknown"):upper()
+end
+
 local function crafterRows(sources, dashboard, colors, cells)
   local rows = {
     {
       "SOURCE",
       "STATE",
-      "TARGET",
-      "CRAFT",
-      "WAIT",
-      "COOL",
+      "ITEM",
+      "AMOUNT",
+      "ACTIVITY",
       "DONE/H",
       "SEEN",
       "UP",
@@ -87,28 +110,74 @@ local function crafterRows(sources, dashboard, colors, cells)
       activityColor = statusColor
     end
 
-    rows[#rows + 1] = {
-      cells:colored(source.id, colors.primary),
-      cells:colored(activity, activityColor),
-      cells:number(data.targets),
-      cells:number(data.crafting, colors.good),
-      cells:number(data.waiting),
-      cells:number(data.cooldown, colors.warning),
-      cells:colored(
-        data.completedPerHour
-          and string.format("%.1f", data.completedPerHour)
-          or "--",
-        colors.good
-      ),
-      cells:colored(
-        format.age(dashboard:age(source)),
-        colors.muted
-      ),
-      cells:colored(
-        format.uptime(source.remoteUptime),
-        colors.muted
-      ),
-    }
+    local targetMetrics = data.targetMetrics
+
+    if type(targetMetrics) == "table"
+        and #targetMetrics > 0
+    then
+      for _, target in ipairs(targetMetrics) do
+        local targetState =
+            status ~= "ONLINE"
+            and status
+            or crafterState(target.status)
+        local targetColor =
+            status ~= "ONLINE"
+            and statusColor
+            or crafterStateColor(target.status, colors)
+
+        rows[#rows + 1] = {
+          cells:colored(source.id, colors.primary),
+          cells:colored(activity, activityColor),
+          cells:colored(target.label or "-", colors.text),
+          cells:colored(
+            tostring(target.currentAmount or 0)
+              .. "/"
+              .. tostring(target.targetAmount or 0),
+            targetColor
+          ),
+          cells:colored(targetState, targetColor),
+          cells:colored(
+            target.completedPerHour
+              and string.format("%.1f", target.completedPerHour)
+              or "--",
+            colors.good
+          ),
+          cells:colored(
+            format.age(dashboard:age(source)),
+            colors.muted
+          ),
+          cells:colored(
+            format.uptime(source.remoteUptime),
+            colors.muted
+          ),
+        }
+      end
+    else
+      rows[#rows + 1] = {
+        cells:colored(source.id, colors.primary),
+        cells:colored(activity, activityColor),
+        cells:colored(
+          tostring(data.targets or 0) .. " TARGETS",
+          colors.text
+        ),
+        cells:colored("--/--", colors.muted),
+        cells:colored("LEGACY", colors.muted),
+        cells:colored(
+          data.completedPerHour
+            and string.format("%.1f", data.completedPerHour)
+            or "--",
+          colors.good
+        ),
+        cells:colored(
+          format.age(dashboard:age(source)),
+          colors.muted
+        ),
+        cells:colored(
+          format.uptime(source.remoteUptime),
+          colors.muted
+        ),
+      }
+    end
   end
 
   return rows
@@ -274,10 +343,9 @@ local function crafterColumns()
   return {
     {weight = 2, align = "left"},
     {weight = 1, align = "left"},
-    {weight = 1, align = "right"},
-    {weight = 1, align = "right"},
-    {weight = 1, align = "right"},
-    {weight = 1, align = "right"},
+    {weight = 3, align = "left"},
+    {weight = 2, align = "right"},
+    {weight = 2, align = "left"},
     {weight = 1, align = "right"},
     {weight = 1, align = "right"},
     {weight = 1, align = "right"},

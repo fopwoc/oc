@@ -2,7 +2,6 @@ local compose = require("lib.compose.init")
 local components = require("lib.components.init")
 local configLoader = require("lib.config.loader")
 local format = require("lib.utils.format")
-local series = require("lib.utils.series")
 local telemetry = require("lib.telemetry.sender")
 
 local powerAdapter = require("lib.gt.lapotronic")
@@ -45,10 +44,33 @@ local function stateLabel(metric)
   return metric.state
 end
 
+local function energyPairs(metric)
+  if not metric.stored
+      or not metric.capacity
+  then
+    return "--/--", "--/-- (--)"
+  end
+
+  local exact = format.energyExact(metric.stored)
+    .. "/"
+    .. format.energyExact(metric.capacity)
+
+  local scaled = format.energy(metric.stored)
+    .. "/"
+    .. format.energy(metric.capacity)
+    .. " ("
+    .. percent(metric.fill)
+    .. ")"
+
+  return exact, scaled
+end
+
 local function detail(context, model)
   local window = compose.remember(15 * 60)
   local metric = model:snapshot(os.time())
   local color = stateColor(metric)
+  local exactEnergy, scaledEnergy =
+      energyPairs(metric)
   local values = model:chart(window.value, os.time())
 
   if #values == 0 then
@@ -63,7 +85,7 @@ local function detail(context, model)
     {"Net", format.powerRate(metric.net), format.powerRate(metric.averageNet24h)},
     {"30s net", format.powerRate(metric.net30s), "--"},
     {"5m net", format.powerRate(metric.net5m), "--"},
-    {"Minimum fill", "--", percent(metric.minimumFill24h)},
+    {"Minimum fill", percent(metric.fill), percent(metric.minimumFill24h)},
     {"ETA empty", metric.etaSeconds and format.duration(metric.etaSeconds) or "--", "--"},
     {"Stored", format.energy(metric.stored), format.energy(metric.capacity)},
   }
@@ -77,14 +99,17 @@ local function detail(context, model)
   local windowButtons = {}
 
   for _, option in ipairs(chartWindowLabels) do
+    local label = option.label
+    local value = option.value
+
     windowButtons[#windowButtons + 1] =
         components.Button(
-          option.label,
+          label,
           function()
-            window.value = option.value
+            window.value = value
           end,
           compose.Modifier:foreground(
-            window.value == option.value
+            window.value == value
               and colors.primary
               or colors.muted
           )
@@ -100,8 +125,15 @@ local function detail(context, model)
         ),
         compose.Spacer(compose.Modifier:weight(1)),
         compose.Text(
-          percent(metric.fill),
+          exactEnergy,
           compose.Modifier:foreground(color)
+        ),
+      }),
+      compose.Row({
+        compose.Spacer(compose.Modifier:weight(1)),
+        compose.Text(
+          scaledEnergy,
+          compose.Modifier:foreground(colors.muted)
         ),
       }),
       compose.Text(
@@ -130,21 +162,21 @@ local function detail(context, model)
     compose.Spacer(compose.Modifier:height(1)),
 
     components.Section("HISTORY", {
-      compose.Row(windowButtons),
       components.AreaChart({
-        values = series.downsample(values, 56),
+        values = values,
+        title = compose.Row(windowButtons),
         height = 5,
         fillColor = color,
         emptyColor = colors.surfaceVariant,
         modifier = compose.Modifier:fillMaxWidth(),
+        footer = compose.Text(
+          "draining "
+            .. format.duration(metric.drainingSeconds)
+            .. " · depleting "
+            .. format.duration(metric.depletingSeconds),
+          compose.Modifier:foreground(colors.muted)
+        ),
       }),
-      compose.Text(
-        "draining "
-          .. format.duration(metric.drainingSeconds)
-          .. " · depleting "
-          .. format.duration(metric.depletingSeconds),
-        compose.Modifier:foreground(colors.muted)
-      ),
     }),
   })
 end

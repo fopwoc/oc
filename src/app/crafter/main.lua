@@ -1,6 +1,9 @@
 local compose =
     require("lib.compose.init")
 
+local computer =
+    require("computer")
+
 local components =
     require("lib.components.init")
 
@@ -23,9 +26,24 @@ local function statusInfo(target)
         colors.good
   end
 
+  if target.status == "requesting" then
+    return "REQUESTING",
+        colors.warning
+  end
+
+  if target.resolveError then
+    return "RETRYING",
+        colors.warning
+  end
+
   if target.status == "cooldown" then
     return "COOLDOWN",
         colors.warning
+  end
+
+  if target.status == "ready" then
+    return "READY",
+        colors.good
   end
 
   return "WAITING",
@@ -142,14 +160,14 @@ compose.App(function()
               compose.Text(
                 "amount "
                 .. tostring(
-                  target.amount
+                  target.currentAmount
                 )
+                .. "/"
+                .. tostring(target.amount)
                 .. "   done/h "
                 .. string.format(
                   "%.1f",
-                  target.completions:perHour(
-                    compose.uptime()
-                  )
+                  target.completions:perHour(computer.uptime())
                 ),
                 compose.Modifier
                 :foreground(
@@ -190,16 +208,23 @@ compose.App(function()
     title = "Crafter",
     service = "scheduler",
     topBarActions = function()
-      return compose.Text(
-        playing.value
-        and "● RUNNING"
-        or "● PAUSED",
-        compose.Modifier:foreground(
+      return compose.Row({
+        compose.Text(
+          tostring(#scheduler.targets) .. " TARGETS",
+          compose.Modifier:foreground(colors.muted)
+        ),
+        compose.Spacer(compose.Modifier:width(1)),
+        compose.Text(
           playing.value
-          and colors.good
-          or colors.bad
-        )
-      )
+          and "● RUNNING"
+          or "● PAUSED",
+          compose.Modifier:foreground(
+            playing.value
+            and colors.good
+            or colors.bad
+          )
+        ),
+      })
     end,
     bottomBarActions = function(context)
       return compose.Row({

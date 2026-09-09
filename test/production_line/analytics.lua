@@ -88,8 +88,57 @@ assert(
 )
 
 assert(
-  #input.chart == 3,
-  "resource history should be available for charting"
+  #input.chart == 60,
+  "resource history should use fixed five-second timeline slots"
+)
+
+local runtimeLabels = analytics.create({
+  id = "runtime-labels",
+  name = "Runtime labels",
+  inputs = {
+    {
+      key = "input",
+      name = "minecraft:soul_sand",
+    },
+  },
+})
+
+runtimeLabels:sample(
+  0,
+  {inputs = {input = 12}},
+  {
+    inputs = {
+      input = {
+        name = "minecraft:soul_sand",
+        label = "Soul Sand",
+        size = 12,
+      },
+    },
+  }
+)
+
+local labeled =
+    runtimeLabels:snapshot(0).inputs[1]
+
+assert(
+  labeled.label == "Soul Sand"
+    and labeled.available == true,
+  "runtime AE2 records should provide labels for technical resources"
+)
+
+runtimeLabels:sample(
+  10,
+  {inputs = {input = 0}},
+  {inputs = {}}
+)
+
+local missing =
+    runtimeLabels:snapshot(10).inputs[1]
+
+assert(
+  missing.available == false
+    and missing.technicalName == "minecraft:soul_sand",
+  "missing runtime resources should retain their technical name"
 )
 
 local draining = analytics.create({

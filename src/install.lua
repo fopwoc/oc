@@ -14,8 +14,8 @@ local MANIFEST_FILE = filesystem.concat(ROOT, "manifest.lua")
 
 local function printHelp()
   print("Usage: install [target|all]")
-  print("       install [target|all] --run")
-  print("       install --run <target>")
+  print("       install [target|all] --run [args...]")
+  print("       install --run <target> [args...]")
   print("       install --list")
   print("       install --dry-run [target]")
   print("       install --url <url>")
@@ -28,6 +28,7 @@ local function printHelp()
   print("  --dry-run      Show the remote install plan without changing files")
   print("  --url <url>    Save a different package source")
   print("  --run <target> Install, then execute ./run.lua <target>")
+  print("                 (the installer is updated during normal installs)")
 end
 
 if args[1] == "--help" or args[1] == "-h" then
@@ -458,6 +459,7 @@ local function install(source, installed)
       resolvePackages(manifest, installed)
 
     local files = {}
+    addFile(files, "install.lua")
     addFile(files, "run.lua")
 
     for name in pairs(resolved) do
@@ -509,7 +511,7 @@ local function install(source, installed)
   end
 end
 
-local function runInstalled(target)
+local function runInstalled(target, runArguments)
   assert(
     type(target) == "string"
       and target ~= ""
@@ -517,8 +519,18 @@ local function runInstalled(target)
     "--run requires a runnable target"
   )
 
+  local command = {
+    "./run.lua",
+    shellQuote(target),
+  }
+
+  for _, argument in ipairs(runArguments or {}) do
+    command[#command + 1] =
+        shellQuote(argument)
+  end
+
   local ok = shell.execute(
-    "./run.lua " .. shellQuote(target)
+    table.concat(command, " ")
   )
 
   assert(
@@ -567,6 +579,7 @@ local function printInstallPlan(source, installed)
     local resolved = resolvePackages(manifest, installed)
     local files = {}
 
+    addFile(files, "install.lua")
     addFile(files, "manifest.lua")
     addFile(files, "run.lua")
     addFile(files, ".installed.lua")
@@ -609,23 +622,33 @@ local installed = loadInstalled()
 
 local requestedTarget = args[1]
 local runAfterInstall = false
+local runArguments = {}
 
 if args[1] == "--run" then
   runAfterInstall = true
   requestedTarget = args[2]
 
   assert(
-    requestedTarget
-      and not args[3],
-    "Usage: install --run <target>"
+    requestedTarget,
+    "Usage: install --run <target> [args...]"
   )
+
+  for index = 3, #args do
+    runArguments[#runArguments + 1] =
+        args[index]
+  end
 elseif args[2] == "--run" then
   runAfterInstall = true
 
   assert(
-    not args[3],
-    "Usage: install <target> --run"
+    requestedTarget,
+    "Usage: install <target> --run [args...]"
   )
+
+  for index = 3, #args do
+    runArguments[#runArguments + 1] =
+        args[index]
+  end
 end
 
 if args[1] == "--url" then
@@ -743,5 +766,8 @@ install(source, installed)
 print("Done.")
 
 if runAfterInstall then
-  runInstalled(requestedTarget)
+  runInstalled(
+    requestedTarget,
+    runArguments
+  )
 end

@@ -15,7 +15,7 @@ local nativeCraftable = {
 }
 
 local nativeMe = {
-  getCraftables = function(_, filter)
+  getCraftables = function(filter)
     if filter.name == "molten.tin" then
       return {nativeCraftable}
     end
@@ -45,7 +45,7 @@ local itemCraftable = {
 }
 
 local itemMe = {
-  getCraftables = function(_, filter)
+  getCraftables = function(filter)
     if filter.label == "Ironwood Dust" then
       return {itemCraftable}
     end
@@ -78,7 +78,7 @@ local userdataLikeCraftable = {
 }
 
 local fallbackMe = {
-  getCraftables = function(_, filter)
+  getCraftables = function(filter)
     if next(filter) == nil then
       return {userdataLikeCraftable}
     end

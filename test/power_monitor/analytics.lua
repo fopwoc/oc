@@ -112,8 +112,8 @@ assert(
 )
 
 assert(
-  #model:chart(15 * 60, 60) == 4,
-  "short history chart should use raw samples"
+  #model:chart(15 * 60, 60) == 180,
+  "short history chart should use fixed five-second timeline slots"
 )
 
 print("power monitor analytics: OK")

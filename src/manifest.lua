@@ -33,9 +33,13 @@ return {
     depends = {
       "compose",
       "telemetry_incidents",
+      "telemetry_store",
       "storage",
       "power_monitor_core",
+      "production_line",
       "collections",
+      "query",
+      "timeline",
     },
     files = {
       "test/suite.lua",
@@ -52,8 +56,15 @@ return {
       "test/storage/round_trip.lua",
       "test/telemetry.lua",
       "test/telemetry/incidents.lua",
+      "test/telemetry/store.lua",
       "test/collections.lua",
       "test/collections/rolling_counter.lua",
+      "test/format.lua",
+      "test/series.lua",
+      "test/query.lua",
+      "test/power_monitor/chart.lua",
+      "test/production_line/chart.lua",
+      "test/timeline.lua",
     },
     run = "test/suite.lua",
     description = "Compose engine regression tests",
@@ -98,6 +109,18 @@ return {
     files = {
       "lib/ae2/network.lua",
     },
+  },
+
+  query = {
+    depends = {
+      "ae2_network",
+    },
+    files = {
+      "lib/ae2/query.lua",
+      "script/query.lua",
+    },
+    run = "script/query.lua",
+    description = "Search the connected AE2 network",
   },
 
   gt_lapotronic = {
@@ -244,6 +267,15 @@ return {
     },
   },
 
+  timeline = {
+    depends = {
+      "compose",
+    },
+    files = {
+      "lib/timeline.lua",
+    },
+  },
+
   collections = {
     depends = {
       "compose",
@@ -262,6 +294,7 @@ return {
   production_line = {
     depends = {
       "compose",
+      "timeline",
     },
     files = {
       "lib/production_line/analytics.lua",
@@ -271,6 +304,7 @@ return {
   power_monitor_core = {
     depends = {
       "compose",
+      "timeline",
     },
     files = {
       "lib/power_monitor/decimal.lua",
@@ -310,6 +344,7 @@ return {
     },
     files = {
       "app/line_monitor/config.example.lua",
+      "app/line_monitor/config.example_hog.lua",
       "app/line_monitor/main.lua",
     },
     run = "app/line_monitor/main.lua",

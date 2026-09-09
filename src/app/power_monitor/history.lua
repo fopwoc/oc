@@ -7,6 +7,10 @@ local VERSION = 2
 local function defaults()
   return {
     buckets = {},
+    timeline = {
+      version = 1,
+      tiers = {},
+    },
   }
 end
 

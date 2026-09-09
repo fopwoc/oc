@@ -41,26 +41,60 @@ local function inputGrid(snapshot)
     {
       "INPUT",
       "ARRIVAL",
-      "PROCESS",
+      "CONSUMED",
       "BACKLOG",
       "STORED",
-      "FULL IN",
+      "LIMIT ETA",
     },
   }
 
   for _, input in ipairs(snapshot.inputs) do
+    local missing =
+        input.available == false
+    local label =
+        missing
+        and tostring(input.technicalName or input.label)
+          .. " is not present"
+        or input.label
+    local limitEta
+
+    if input.fullInSeconds then
+      limitEta =
+          "FULL " .. format.duration(input.fullInSeconds)
+    elseif input.emptyInSeconds then
+      limitEta =
+          "EMPTY " .. format.duration(input.emptyInSeconds)
+    else
+      limitEta = "--"
+    end
+
     rows[#rows + 1] = {
-      input.label,
-      cells:colored(format.rate(input.arrivalRate), colors.primary),
-      cells:colored(format.rate(input.processingRate), colors.good),
       cells:colored(
-        format.rate(input.backlogRate),
-        input.backlogRate > 0
+        label,
+        missing and colors.bad or colors.text
+      ),
+      cells:colored(
+        missing and "--" or format.rate(input.arrivalRate),
+        missing and colors.bad or colors.primary
+      ),
+      cells:colored(
+        missing and "--" or format.rate(input.processingRate),
+        missing and colors.bad or colors.good
+      ),
+      cells:colored(
+        missing and "--" or format.rate(input.backlogRate),
+        missing
+          and colors.bad
+          or input.backlogRate > 0
           and colors.bad
           or colors.good
       ),
-      format.amount(input.amount, input.capacity),
-      format.duration(input.fullInSeconds),
+      missing
+        and cells:colored("NOT FOUND", colors.bad)
+        or format.amount(input.amount, input.capacity),
+      missing
+        and cells:colored("--", colors.bad)
+        or limitEta,
     }
   end
 
@@ -92,22 +126,34 @@ local function outputGrid(snapshot)
   }
 
   for _, output in ipairs(snapshot.outputs) do
+    local missing =
+        output.available == false
+    local label =
+        missing
+        and tostring(output.technicalName or output.label)
+          .. " is not present"
+        or output.label
     local trendColor =
         output.netRate >= 0
         and colors.good
         or colors.warning
 
     rows[#rows + 1] = {
-      output.label,
-        cells:colored(
-        format.rate(output.productionRate),
-        colors.good
+      cells:colored(
+        label,
+        missing and colors.bad or colors.text
       ),
       cells:colored(
-        format.rate(output.netRate),
-        trendColor
+        missing and "--" or format.rate(output.productionRate),
+        missing and colors.bad or colors.good
       ),
-      format.amount(output.amount, output.capacity),
+      cells:colored(
+        missing and "--" or format.rate(output.netRate),
+        missing and colors.bad or trendColor
+      ),
+      missing
+        and cells:colored("NOT FOUND", colors.bad)
+        or format.amount(output.amount, output.capacity),
     }
   end
 
@@ -165,17 +211,17 @@ compose.App(function()
 
       while true do
         local sampledAt = compose.uptime()
-        local inputs, inputError =
+        local inputs, inputError, inputRecords =
             adapter:sample(
               config.inputs,
               analytics.resourceKey
             )
 
-        local outputs, outputError
+        local outputs, outputError, outputRecords
 
         if inputs then
-          outputs, outputError =
-              adapter:sample(
+          outputs, outputError, outputRecords =
+            adapter:sample(
                 config.outputs,
                 analytics.resourceKey
               )
@@ -196,7 +242,14 @@ compose.App(function()
         end
 
         if values then
-          model:sample(sampledAt, values)
+          model:sample(
+            sampledAt,
+            values,
+            {
+              inputs = inputRecords,
+              outputs = outputRecords,
+            }
+          )
           consecutiveFailures = 0
           incidents:resolve(
             "ae2-unavailable",

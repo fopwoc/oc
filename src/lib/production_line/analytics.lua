@@ -1,4 +1,4 @@
-local ringBuffer = require("lib.compose.ring_buffer")
+local timeline = require("lib.timeline")
 
 local analytics = {}
 
@@ -85,6 +85,8 @@ local function validateResource(resource, index, group)
     label = resource.label
       or resource.name
       or tostring(resource.id),
+    labelConfigured = type(resource.label) == "string",
+    available = nil,
     type = resourceType,
     group = group,
     name = resource.name,
@@ -94,18 +96,20 @@ local function validateResource(resource, index, group)
     fluidLabel = resource.fluidLabel,
     capacity = capacity,
     capacityPolicy = capacityPolicy,
-    history = ringBuffer.create(1),
+    history = nil,
   }
 end
 
-local function createResourceList(resources, group, capacity)
+local function createResourceList(resources, group, sampleSeconds)
   local result = {}
 
   for index, resource in ipairs(resources or {}) do
     local item =
         validateResource(resource, index, group)
 
-    item.history = ringBuffer.create(capacity)
+    item.history = timeline.create({
+      sampleSeconds = sampleSeconds,
+    })
     result[#result + 1] = item
   end
 
@@ -113,16 +117,7 @@ local function createResourceList(resources, group, capacity)
 end
 
 local function windowPoints(resource, now, window)
-  local points = {}
-  local cutoff = now - window
-
-  for _, point in resource.history:iter() do
-    if point.time >= cutoff then
-      points[#points + 1] = point
-    end
-  end
-
-  return points
+  return resource.history:points(window, now)
 end
 
 local function rateStats(resource, now, window)
@@ -158,8 +153,8 @@ local function rateStats(resource, now, window)
 
   for index = 2, #points do
     local delta =
-        points[index].amount
-        - points[index - 1].amount
+        points[index].value
+        - points[index - 1].value
 
     if delta > 0 then
       arrivals = arrivals + delta
@@ -174,7 +169,7 @@ local function rateStats(resource, now, window)
     elapsed = elapsed,
     arrivalRate = arrivals / elapsed,
     processingRate = processing / elapsed,
-    netRate = (last.amount - first.amount) / elapsed,
+    netRate = (last.value - first.value) / elapsed,
   }
 end
 
@@ -192,7 +187,7 @@ local function chartValues(resource, now, window)
     scale = 0
 
     for _, point in ipairs(points) do
-      scale = math.max(scale, point.amount)
+      scale = math.max(scale, point.value)
     end
   end
 
@@ -200,17 +195,21 @@ local function chartValues(resource, now, window)
     scale = 1
   end
 
-  local values = {}
+  local values = resource.history:values(window, now)
 
-  for _, point in ipairs(points) do
-    values[#values + 1] =
-        clamp(point.amount / scale, 0, 1)
+  for index, value in ipairs(values) do
+    values[index] = clamp(value / scale, 0, 1)
   end
 
   return values
 end
 
-local function resourceResult(resource, now, shortWindow, mediumWindow)
+local function resourceResult(
+    resource,
+    now,
+    shortWindow,
+    mediumWindow
+)
   local amount = resource.amount or 0
   local short =
       rateStats(resource, now, shortWindow)
@@ -219,6 +218,7 @@ local function resourceResult(resource, now, shortWindow, mediumWindow)
 
   local utilization
   local fullInSeconds
+  local emptyInSeconds
 
   if resource.capacity then
     utilization =
@@ -231,17 +231,29 @@ local function resourceResult(resource, now, shortWindow, mediumWindow)
       fullInSeconds =
           (resource.capacity - amount)
           / short.netRate
+    elseif short.valid
+        and short.netRate < 0
+        and amount > 0
+    then
+      emptyInSeconds =
+          amount / -short.netRate
     end
   end
 
   return {
     key = resource.key,
     label = resource.label,
+    technicalName = resource.name
+      or resource.id
+      or resource.label,
     type = resource.type,
     amount = amount,
     capacity = resource.capacity,
     capacityPolicy = resource.capacityPolicy,
+    available = resource.available,
     utilization = utilization,
+    fullInSeconds = fullInSeconds,
+    emptyInSeconds = emptyInSeconds,
     short = short,
     medium = medium,
     arrivalRate = short.arrivalRate,
@@ -250,7 +262,6 @@ local function resourceResult(resource, now, shortWindow, mediumWindow)
     netRate = short.netRate,
     productionRate = short.arrivalRate,
     consumptionRate = short.processingRate,
-    fullInSeconds = fullInSeconds,
     chart = chartValues(resource, now, mediumWindow),
   }
 end
@@ -455,17 +466,13 @@ function analytics.create(config)
   local mediumWindow =
       positiveNumber(config.mediumWindow, 300)
 
-  local historyCapacity =
-      math.max(
-        2,
-        math.floor(
-          positiveNumber(config.historyCapacity, 120)
-        )
-      )
-
   local options = {
     shortWindow = shortWindow,
     mediumWindow = mediumWindow,
+    sampleSeconds = positiveNumber(
+      config.sampleSeconds,
+      5
+    ),
     rateEpsilon =
         positiveNumber(config.rateEpsilon, 0.001),
   }
@@ -476,19 +483,19 @@ function analytics.create(config)
     inputs = createResourceList(
       config.inputs,
       "input",
-      historyCapacity
+      options.sampleSeconds
     ),
     outputs = createResourceList(
       config.outputs,
       "output",
-      historyCapacity
+      options.sampleSeconds
     ),
     offline = false,
     error = nil,
     lastSample = nil,
   }
 
-  function instance:sample(time, values)
+  function instance:sample(time, values, records)
     assert(
       type(time) == "number",
       "Production line sample time must be a number"
@@ -500,8 +507,16 @@ function analytics.create(config)
     )
 
     for _, group in ipairs({
-      {resources = self.inputs, values = values.inputs},
-      {resources = self.outputs, values = values.outputs},
+      {
+        resources = self.inputs,
+        values = values.inputs,
+        records = records and records.inputs,
+      },
+      {
+        resources = self.outputs,
+        values = values.outputs,
+        records = records and records.outputs,
+      },
     }) do
       for _, resource in ipairs(group.resources) do
         local amount =
@@ -512,10 +527,30 @@ function analytics.create(config)
         resource.amount =
             math.max(0, tonumber(amount) or 0)
 
-        resource.history:push({
-          time = time,
-          amount = resource.amount,
-        })
+        local record =
+            group.records
+            and group.records[resource.key]
+
+        if group.records then
+          resource.available =
+              record ~= nil
+        else
+          resource.available = nil
+        end
+
+        if not resource.labelConfigured
+            and type(record) == "table"
+        then
+          resource.label =
+              record.label
+              or record.displayName
+              or resource.label
+        end
+
+        resource.history:commit(
+          time,
+          resource.amount
+        )
       end
     end
 

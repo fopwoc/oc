@@ -29,8 +29,26 @@ local function itemStack(value)
 end
 
 local function query(me, filter)
-  local result, errorMessage =
-      me:getCraftables(filter)
+  local method = me.getCraftables
+  local directOk, result, errorMessage =
+      pcall(
+        method,
+        filter
+      )
+
+  if not directOk then
+    local wrappedOk, wrappedResult, wrappedError =
+        pcall(function()
+          return me:getCraftables(filter)
+        end)
+
+    if wrappedOk then
+      result = wrappedResult
+      errorMessage = wrappedError
+    else
+      return nil, tostring(wrappedResult)
+    end
+  end
 
   if not result then
     return nil, errorMessage
@@ -101,18 +119,8 @@ local function resolveFluid(me, target)
 end
 
 local function resolveItem(me, target)
-  local found, errorMessage =
-      query(me, {
-        label = target.label,
-      })
-
-  if not found then
-    return nil, errorMessage
-  end
-
-  if #found > 0 then
-    return found[1]
-  end
+  local found
+  local errorMessage
 
   if target.name then
     found, errorMessage =
@@ -127,7 +135,21 @@ local function resolveItem(me, target)
     if #found > 0 then
       return found[1]
     end
+  end
 
+  if target.label then
+    found, errorMessage =
+        query(me, {
+          label = target.label,
+        })
+
+    if not found then
+      return nil, errorMessage
+    end
+
+    if #found > 0 then
+      return found[1]
+    end
   end
 
   -- Some GTNH builds do not apply the label filter to craftables. The

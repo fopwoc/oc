@@ -11,7 +11,6 @@ return {
   incidentSyncSeconds = 30,
   shortWindow = 60,
   mediumWindow = 300,
-  historyCapacity = 120,
 
   -- Capacity is the maximum amount assigned to this resource's isolated
   -- storage on the line subnet. It is intentionally configured because
@@ -22,18 +21,16 @@ return {
   inputs = {
     {
       type = "item",
-      label = "Platinum Metallic Powder",
       name = "gregtech:gt.metaitem.01",
       damage = 0,
       capacity = 512000,
       capacityPolicy = "pressure",
     },
 
-    -- Fluid resources use getFluidsInNetwork() and match by fluid name.
+    -- Fluid resources use targeted getFluidInNetwork() calls and match by name.
     -- The optional fluidLabel disambiguates networks exposing the same name.
     -- {
     --   type = "fluid",
-    --   label = "Molten Platinum",
     --   name = "molten.platinum",
     --   fluidLabel = "Molten Platinum",
     --   capacity = 16000,
