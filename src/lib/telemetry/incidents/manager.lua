@@ -76,7 +76,7 @@ function incidents.create(options)
   }
 
   local function transmit(event, data)
-    local ok, result =
+    local ok, result, errorMessage =
         pcall(instance.send, event, data)
 
     if not ok then
@@ -85,6 +85,16 @@ function incidents.create(options)
         "failed to send " .. event .. ": " .. tostring(result)
       )
       return false, result
+    end
+
+    if result == false
+        or (result == nil and errorMessage ~= nil)
+    then
+      report(
+        instance,
+        "failed to send " .. event .. ": " .. tostring(errorMessage)
+      )
+      return false, errorMessage
     end
 
     return true, result

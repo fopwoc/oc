@@ -2,6 +2,7 @@ return {
   compose = {
     depends = {
       "coroutines",
+      "collections",
     },
     files = {
       "lib/compose/nodes.lua",
@@ -19,7 +20,6 @@ return {
       "lib/compose/scroll.lua",
       "lib/compose/navigation.lua",
       "lib/compose/hardware.lua",
-      "lib/compose/ring_buffer.lua",
     },
   },
 
@@ -40,6 +40,7 @@ return {
       "collections",
       "query",
       "timeline",
+      "utils",
     },
     files = {
       "test/suite.lua",
@@ -48,6 +49,7 @@ return {
       "test/coroutines/scheduler.lua",
       "test/compose/engine.lua",
       "test/compose/color.lua",
+      "test/compose/framebuffer.lua",
       "test/compose/ring_buffer.lua",
       "test/compose/navigation_engine.lua",
       "test/compose/lifecycle.lua",
@@ -61,13 +63,14 @@ return {
       "test/collections/rolling_counter.lua",
       "test/format.lua",
       "test/series.lua",
+      "test/clock.lua",
       "test/query.lua",
       "test/power_monitor/chart.lua",
       "test/production_line/chart.lua",
       "test/timeline.lua",
     },
     run = "test/suite.lua",
-    description = "Compose engine regression tests",
+    description = "Core regression tests",
   },
 
   test_scaffold = {
@@ -262,6 +265,8 @@ return {
 
   utils = {
     files = {
+      "lib/utils/clock.lua",
+      "lib/utils/decimal.lua",
       "lib/utils/format.lua",
       "lib/utils/series.lua",
     },
@@ -269,7 +274,7 @@ return {
 
   timeline = {
     depends = {
-      "compose",
+      "collections",
     },
     files = {
       "lib/timeline.lua",
@@ -277,10 +282,8 @@ return {
   },
 
   collections = {
-    depends = {
-      "compose",
-    },
     files = {
+      "lib/collections/ring_buffer.lua",
       "lib/collections/rolling_counter.lua",
     },
   },
@@ -293,7 +296,6 @@ return {
 
   production_line = {
     depends = {
-      "compose",
       "timeline",
     },
     files = {
@@ -303,11 +305,11 @@ return {
 
   power_monitor_core = {
     depends = {
-      "compose",
+      "collections",
       "timeline",
+      "utils",
     },
     files = {
-      "lib/power_monitor/decimal.lua",
       "lib/power_monitor/analytics.lua",
     },
   },
@@ -324,7 +326,6 @@ return {
     },
     files = {
       "app/power_monitor/config.example.lua",
-      "app/power_monitor/history.lua",
       "app/power_monitor/main.lua",
       "app/power_monitor/settings.lua",
     },
@@ -379,7 +380,6 @@ return {
       "utils",
     },
     files = {
-      "app/dashboard/incident_history.lua",
       "app/dashboard/main.lua",
       "app/dashboard/presenter.lua",
     },

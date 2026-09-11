@@ -6,8 +6,15 @@ local protocol =
 
 local receiver = {}
 
-local modem =
-    component.modem
+local function resolveModem()
+  local modem = component.modem
+
+  if not modem then
+    return nil, "telemetry modem is unavailable"
+  end
+
+  return modem
+end
 
 
 function receiver.create(options)
@@ -21,15 +28,69 @@ function receiver.create(options)
 
 
   function instance:open()
-    return modem.open(
+    local modem, errorMessage = resolveModem()
+
+    if not modem then
+      return nil, errorMessage
+    end
+
+    local checked, alreadyOpen = pcall(
+      modem.isOpen,
       self.port
     )
+
+    if checked and alreadyOpen == true then
+      self.modem = modem
+      self.ownsPort = false
+      return true
+    end
+
+    local ok, opened, openError = pcall(
+      modem.open,
+      self.port
+    )
+
+    if not ok then
+      return nil, opened
+    end
+
+    if opened ~= true then
+      local rechecked, nowOpen = pcall(
+        modem.isOpen,
+        self.port
+      )
+
+      if rechecked and nowOpen == true then
+        self.modem = modem
+        self.ownsPort = false
+        return true
+      end
+
+      return nil,
+        openError
+        or "modem open returned " .. tostring(opened)
+    end
+
+    self.modem = modem
+    self.ownsPort = true
+    return true
   end
 
   function instance:close()
-    return modem.close(
-      self.port
-    )
+    local modem = self.modem
+
+    if not modem then
+      return false
+    end
+
+    self.modem = nil
+
+    if not self.ownsPort then
+      return true
+    end
+
+    self.ownsPort = nil
+    return modem.close(self.port)
   end
 
   function instance:receive(

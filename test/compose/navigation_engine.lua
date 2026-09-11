@@ -36,6 +36,7 @@ assert(changes == 5)
 local providerCalls = {home = 0, details = 0}
 local pullCount = 0
 local renderCount = 0
+local maxRenderedDestinations = 0
 
 local platform = {
   now = function()
@@ -87,8 +88,12 @@ runtime.App(
       end,
     })
   end,
-  function()
+  function(tree)
     renderCount = renderCount + 1
+    maxRenderedDestinations = math.max(
+      maxRenderedDestinations,
+      #(tree.props.children or {})
+    )
   end,
   {platform = platform}
 )
@@ -96,5 +101,9 @@ runtime.App(
 assert(renderCount == 3)
 assert(providerCalls.home == 1)
 assert(providerCalls.details == 1)
+assert(
+  maxRenderedDestinations == 1,
+  "inactive destinations should retain state without entering layout"
+)
 
 print("navigation engine: OK")

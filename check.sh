@@ -21,6 +21,7 @@ done < <(find src test -type f -name '*.lua' -print0 | sort -z)
 bash -n check.sh
 bash -n devserver.sh
 
+"$LUA_BIN" scripts/check_manifest.lua
 "$LUA_BIN" test/suite.lua
 
 echo "check: OK"

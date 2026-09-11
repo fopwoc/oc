@@ -210,7 +210,12 @@ local function finishScope(scope)
 
   for key, childScope in pairs(scope.scopes) do
     if not scope.seenScopes[key] then
-      disposeScope(childScope)
+      local err = disposeScope(childScope)
+
+      if err then
+        error(err, 0)
+      end
+
       scope.scopes[key] = nil
     end
   end
@@ -997,6 +1002,10 @@ function runtime.App(content, render, options)
   end
 
   if not cleanupOk then
+    error(cleanupError, 0)
+  end
+
+  if cleanupError then
     error(cleanupError, 0)
   end
 end

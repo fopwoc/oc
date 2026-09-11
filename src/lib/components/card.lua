@@ -16,6 +16,18 @@ function card.Card(
       border
       or {}
 
+  local padding = border.padding
+
+  if padding == nil then
+    padding = 1
+  end
+
+  assert(
+    type(padding) == "number"
+      and padding >= 0,
+    "Card padding must be non-negative"
+  )
+
   local colors = colorStyle.current()
 
   local content =
@@ -30,7 +42,7 @@ function card.Card(
       border.color or colors.border,
       border.characters
     )
-    :padding(1)
+    :padding(padding)
   )
 end
 

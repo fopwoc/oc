@@ -327,7 +327,7 @@ local function drawBorder(
     end
   end
 
-  -- Совсем вырожденный случай.
+  -- Single-cell border.
   if
       left == right
       and top == bottom
@@ -341,7 +341,7 @@ local function drawBorder(
     return
   end
 
-  -- Верх / низ.
+  -- Top and bottom edges.
   if left < right then
     put(
       left,
@@ -386,7 +386,7 @@ local function drawBorder(
     end
   end
 
-  -- Боковины.
+  -- Side edges.
   for y = top + 1, bottom - 1 do
     put(
       left,
@@ -478,8 +478,8 @@ local function drawText(
       break
     end
 
-    -- Рисуем только полностью видимый glyph.
-    -- Половину wide-char рисовать нельзя.
+    -- Draw only complete visible glyphs; a wide character cannot be clipped
+    -- halfway through its occupied cells.
     if
         charLeft >= visibleLeft
         and charRight <= visibleRight

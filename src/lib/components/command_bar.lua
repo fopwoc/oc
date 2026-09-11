@@ -51,7 +51,7 @@ end
 
 local function appendSlot(children, slot, context)
   if slot == nil then
-    return
+    return false
   end
 
   if type(slot) == "function" then
@@ -65,7 +65,7 @@ local function appendSlot(children, slot, context)
 
   if slot.type then
     children[#children + 1] = slot
-    return
+    return true
   end
 
   for _, child in ipairs(slot) do
@@ -76,6 +76,8 @@ local function appendSlot(children, slot, context)
 
     children[#children + 1] = child
   end
+
+  return #slot > 0
 end
 
 function commandBar.CommandBar(options)
@@ -105,7 +107,7 @@ function commandBar.CommandBar(options)
         compose.Modifier:weight(1)
       )
 
-  appendSlot(
+  local hasActions = appendSlot(
     children,
     options.actions,
     options.context
@@ -117,6 +119,13 @@ function commandBar.CommandBar(options)
         label = "q quit",
         color = colors.muted,
       }
+
+  if hasActions and trailing then
+    children[#children + 1] =
+        compose.Spacer(
+          compose.Modifier:width(2)
+        )
+  end
 
   appendAction(
     children,

@@ -193,6 +193,16 @@ function grid.Grid(options)
 
   local rows = {}
   local cellPadding = options.cellPadding or 0
+  local horizontalCellPadding =
+      options.horizontalCellPadding
+
+  if horizontalCellPadding ~= nil then
+    assert(
+      type(horizontalCellPadding) == "number"
+        and horizontalCellPadding >= 0,
+      "Grid horizontalCellPadding must be non-negative"
+    )
+  end
 
   for rowIndex, values in ipairs(options.rows) do
     assert(
@@ -274,8 +284,14 @@ function grid.Grid(options)
             )
       end
 
-      cellModifier =
-          cellModifier:padding(cellPadding)
+      if horizontalCellPadding ~= nil then
+        cellModifier = cellModifier:padding(
+          horizontalCellPadding,
+          0
+        )
+      else
+        cellModifier = cellModifier:padding(cellPadding)
+      end
 
       local alignment =
           specification.align

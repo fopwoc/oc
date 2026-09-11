@@ -1,6 +1,6 @@
 package.path = "src/?.lua;" .. package.path
 
-local decimal = require("lib.power_monitor.decimal")
+local decimal = require("lib.utils.decimal")
 local analytics = require("lib.power_monitor.analytics")
 
 assert(
@@ -11,6 +11,11 @@ assert(
 assert(
   decimal.compact("1048576000000", "EU") == "1.05 TEU",
   "decimal compact formatting should preserve large energy scales"
+)
+
+assert(
+  decimal.compact("0", "EU") == "0 EU",
+  "decimal compact formatting should separate zero from its unit"
 )
 
 local persisted

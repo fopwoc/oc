@@ -64,6 +64,21 @@ local function setCell(
   frame.background[i] = background
 end
 
+local function clearOverlappingGlyph(frame, x, y)
+  local i = index(frame.width, x, y)
+  local char = frame.chars[i]
+
+  if char == CONTINUATION and x > 1 then
+    frame.chars[index(frame.width, x - 1, y)] = " "
+  elseif char
+      and char ~= CONTINUATION
+      and unicode.charWidth(char) == 2
+      and x < frame.width
+  then
+    frame.chars[index(frame.width, x + 1, y)] = " "
+  end
+end
+
 local function writeChar(
     frame,
     x,
@@ -126,6 +141,12 @@ local function writeChar(
           frame.foregroundColor,
           background
         )
+  end
+
+  clearOverlappingGlyph(frame, x, y)
+
+  if width == 2 then
+    clearOverlappingGlyph(frame, x + 1, y)
   end
 
   setCell(
@@ -297,6 +318,7 @@ function framebuffer.fillBackground(
               )
 
           if alpha == 1 then
+            clearOverlappingGlyph(frame, column, row)
             frame.chars[i] = " "
             frame.foreground[i] =
                 color.blend(
@@ -505,6 +527,13 @@ function framebuffer.present(
   for y = 1, height do
     local changed = {}
 
+    local function markChanged(x)
+      if x >= 1 and x <= width and not changed[x] then
+        changed[x] = true
+        changedCells = changedCells + 1
+      end
+    end
+
     for x = 1, width do
       local i =
           index(
@@ -518,13 +547,9 @@ function framebuffer.present(
             previous,
             i
           ) then
-        if not changed[x] then
-          changed[x] = true
-          changedCells = changedCells + 1
-        end
+        markChanged(x)
 
-        -- Если изменилась continuation-cell,
-        -- перерисовываем и начало wide-глифа.
+        -- A changed continuation cell also invalidates the wide glyph lead.
         if
             x > 1
             and (
@@ -542,12 +567,10 @@ function framebuffer.present(
               )
             )
         then
-          changed[x - 1] = true
+          markChanged(x - 1)
         end
 
-        -- Если lead wide-глифа изменился,
-        -- его вторая клетка тоже логически
-        -- относится к этому изменению.
+        -- A changed wide glyph lead also invalidates its continuation cell.
         if
             x < width
             and (
@@ -565,7 +588,7 @@ function framebuffer.present(
               )
             )
         then
-          changed[x + 1] = true
+          markChanged(x + 1)
         end
       end
     end
@@ -588,8 +611,7 @@ function framebuffer.present(
               )
             )
 
-        -- changed span никогда не должен
-        -- реально стартовать внутри wide-char.
+        -- A changed span must never begin inside a wide character.
         if char == CONTINUATION then
           x = x + 1
         else

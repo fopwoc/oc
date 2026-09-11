@@ -4,6 +4,8 @@ local now = 0
 local jobState = "computing"
 local networkAmount = 0
 local lastRequestAmount
+local proxyError = false
+local proxiedAddress
 
 local me = {}
 local craftable = {}
@@ -86,7 +88,13 @@ package.preload.component = function()
       end
     end,
 
-    proxy = function()
+    proxy = function(address)
+      proxiedAddress = address
+
+      if proxyError then
+        error("component unavailable")
+      end
+
       return me
     end,
   }
@@ -97,6 +105,42 @@ package.loaded["app.crafter.scheduler"] = nil
 
 local schedulerModule =
     require("app.crafter.scheduler")
+
+local configuredScheduler = schedulerModule.create({
+  meAddress = "configured-address",
+  completionWindowSeconds = 3600,
+  completionHistoryCapacity = 16,
+  targets = {
+    {label = "Configured network"},
+  },
+})
+
+assert(
+  proxiedAddress == "configured-address"
+    and configuredScheduler.adapter.kind == "configured",
+  "crafter should use its configured ME component"
+)
+
+proxyError = true
+
+local disconnectedScheduler = schedulerModule.create({
+  meAddress = "offline-address",
+  completionWindowSeconds = 3600,
+  completionHistoryCapacity = 16,
+  targets = {
+    {label = "Offline network", retrySeconds = 1},
+  },
+})
+
+disconnectedScheduler:step(true)
+
+assert(
+  disconnectedScheduler.targets[1].status == "waiting"
+    and disconnectedScheduler.targets[1].resolveError,
+  "crafter should remain alive while its ME component is unavailable"
+)
+
+proxyError = false
 
 local scheduler = schedulerModule.create({
   completionWindowSeconds = 3600,
@@ -144,9 +188,35 @@ local deficitSnapshot =
     deficitScheduler:snapshot(true)
 
 assert(
-  deficitSnapshot.targetMetrics[1].currentAmount == 7
-    and deficitSnapshot.targetMetrics[1].targetAmount == 10,
-  "crafter telemetry should expose current and target amounts"
+  deficitSnapshot.targets == 1
+    and deficitSnapshot.crafting == 1
+    and deficitSnapshot.satisfaction == 70
+    and deficitSnapshot.targetMetrics == nil,
+  "crafter telemetry should expose bounded aggregate target satisfaction"
+)
+
+networkAmount = 5
+
+local averageSatisfactionScheduler = schedulerModule.create({
+  completionWindowSeconds = 3600,
+  completionHistoryCapacity = 16,
+  targets = {
+    {
+      label = "Small target",
+      amount = 10,
+    },
+    {
+      label = "Large target",
+      amount = 20,
+    },
+  },
+})
+
+averageSatisfactionScheduler:step(true)
+
+assert(
+  averageSatisfactionScheduler:snapshot(true).satisfaction == 38,
+  "satisfaction should equally average each target percentage"
 )
 
 networkAmount = 0

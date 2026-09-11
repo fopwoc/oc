@@ -172,7 +172,7 @@ function topAppBar.TopAppBar(options)
   appendText(
     children,
     options.title,
-    colors.foreground
+    colors.primary
   )
 
   children[#children + 1] =
@@ -180,11 +180,18 @@ function topAppBar.TopAppBar(options)
         compose.Modifier:weight(1)
       )
 
-  appendSlot(
+  local hasActions = appendSlot(
     children,
     options.actions,
     options.context
   )
+
+  if hasActions and options.trailing then
+    children[#children + 1] =
+        compose.Spacer(
+          compose.Modifier:width(2)
+        )
+  end
 
   if options.trailing then
     local trailing = options.trailing

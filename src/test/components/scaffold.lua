@@ -6,6 +6,7 @@ local runtime = require("lib.compose.runtime")
 local stack = nil
 local finished = false
 local pullCount = 0
+local slotContexts = {}
 
 local platform = {
   now = function()
@@ -53,9 +54,18 @@ runtime.App(
 
     return components.Scaffold({
       navigation = stack,
-      topBar = compose.Text("top"),
-      content = compose.Text("content"),
-      bottomBar = compose.Text("bottom"),
+      topBar = function(context)
+        slotContexts.top = context
+        return compose.Text("top")
+      end,
+      content = function(context)
+        slotContexts.content = context
+        return compose.Text("content")
+      end,
+      bottomBar = function(context)
+        slotContexts.bottom = context
+        return compose.Text("bottom")
+      end,
     })
   end,
   function()
@@ -65,5 +75,12 @@ runtime.App(
 
 assert(stack:size() == 1)
 assert(finished)
+assert(
+  slotContexts.top
+    and slotContexts.top == slotContexts.content
+    and slotContexts.content == slotContexts.bottom
+    and type(slotContexts.top.requestQuit) == "function",
+  "all Scaffold slots should receive the shared slot context"
+)
 
 print("scaffold key handling: OK")

@@ -12,6 +12,22 @@ local HARDWARE_REFRESH_SECONDS = 3
 local function formatUptime(seconds)
   seconds = math.floor(seconds)
 
+  if seconds >= 24 * 60 * 60 then
+    return string.format(
+      "%dd %02dh",
+      math.floor(seconds / (24 * 60 * 60)),
+      math.floor(seconds / (60 * 60)) % 24
+    )
+  end
+
+  if seconds >= 60 * 60 then
+    return string.format(
+      "%dh %02dm",
+      math.floor(seconds / (60 * 60)),
+      math.floor(seconds / 60) % 60
+    )
+  end
+
   return string.format(
     "%02dm %02ds",
     math.floor(seconds / 60),
@@ -62,6 +78,18 @@ function entrypoint.Entrypoint(options)
     "Entrypoint requires content or routes"
   )
 
+  local contentPadding = options.contentPadding
+
+  if contentPadding == nil then
+    contentPadding = 1
+  end
+
+  assert(
+    type(contentPadding) == "number"
+      and contentPadding >= 0,
+    "Entrypoint contentPadding must be non-negative"
+  )
+
   local colors =
       colorStyle.defaults()
 
@@ -103,8 +131,6 @@ function entrypoint.Entrypoint(options)
     end
   )
 
-  local _ = uptimeRevision.value
-
   local hardwareSnapshot =
       compose.remember(function()
         return compose.hardware()
@@ -120,29 +146,39 @@ function entrypoint.Entrypoint(options)
     end
   )
 
-  local hardware = hardwareSnapshot.value
-
-  local runtimeMetrics =
-      compose.metrics()
-
-  local rendererMetrics =
-      compose.rendererMetrics()
-
   local context = {
     colorStyle = colors,
     colors = colors,
     navigation = navigation,
-    uptime = compose.uptime(),
     uptimeRevision = uptimeRevision,
-    hardware = hardware,
-    metrics = {
-      cpuPercent = runtimeMetrics.cpuPercent,
-      cpuEstimated = runtimeMetrics.cpuEstimated,
-      gpuActivityPercent =
-          rendererMetrics.gpuActivityPercent,
-      gpuEstimated = rendererMetrics.gpuEstimated,
-    },
   }
+
+  setmetatable(context, {
+    __index = function(_, key)
+      if key == "uptime" then
+        local _ = uptimeRevision.value
+        return compose.uptime()
+      end
+
+      if key == "hardware" then
+        return hardwareSnapshot.value
+      end
+
+      if key == "metrics" then
+        local _ = uptimeRevision.value
+        local runtimeMetrics = compose.metrics()
+        local rendererMetrics = compose.rendererMetrics()
+
+        return {
+          cpuPercent = runtimeMetrics.cpuPercent,
+          cpuEstimated = runtimeMetrics.cpuEstimated,
+          gpuActivityPercent =
+              rendererMetrics.gpuActivityPercent,
+          gpuEstimated = rendererMetrics.gpuEstimated,
+        }
+      end
+    end,
+  })
 
   function context.navigate(key, args)
     return navigation:push(key, args)
@@ -152,22 +188,35 @@ function entrypoint.Entrypoint(options)
     return navigation:pop()
   end
 
-  local content
+  local content = compose.RecomposeScope(
+    "entrypoint-content",
+    function()
+      local node
 
-  if type(options.content) == "function" then
-    content = options.content(context)
-  elseif options.content then
-    content = options.content
-  else
-    content = compose.NavDisplay(
-      navigation,
-      routeProvider(options.routes, context)
-    )
-  end
+      if type(options.content) == "function" then
+        node = options.content(context)
+      elseif options.content then
+        node = options.content
+      else
+        node = compose.NavDisplay(
+          navigation,
+          routeProvider(options.routes, context)
+        )
+      end
 
-  assert(
-    type(content) == "table",
-    "Entrypoint content must return a node"
+      assert(
+        type(node) == "table",
+        "Entrypoint content must return a node"
+      )
+
+      return compose.Box(
+        {node},
+        compose.Modifier
+        :fillMaxWidth()
+        :fillMaxHeight()
+        :padding(contentPadding)
+      )
+    end
   )
 
   local defaultTopBar = function(scaffoldContext)
@@ -176,16 +225,17 @@ function entrypoint.Entrypoint(options)
       onRootAction = scaffoldContext.requestQuit,
       title = options.title,
       trailing = options.trailing
-        or "│ uptime " .. formatUptime(context.uptime),
+        or "UP " .. formatUptime(context.uptime),
       colorStyle = colors,
       context = context,
       actions = options.topBarActions,
       background = options.surface
-        or colors.surface,
+        or colors.surfaceVariant,
     })
   end
 
   local defaultBottomBar = function()
+    local hardware = context.hardware
     local memoryLabel = "RAM --"
 
     if hardware.memoryPercent ~= nil then
@@ -197,12 +247,17 @@ function entrypoint.Entrypoint(options)
 
     return commandBar.CommandBar({
       hints = options.hints,
-      service = options.service,
+      service = type(options.service) == "string"
+        and {
+          label = options.service,
+          color = colors.muted,
+        }
+        or options.service,
       context = context,
       actions = options.bottomBarActions,
       trailing = options.quitHint
         or {
-          label = "│ " .. memoryLabel,
+          label = memoryLabel,
           color = colors.muted,
         },
       colorStyle = colors,
@@ -222,15 +277,34 @@ function entrypoint.Entrypoint(options)
     end
   end
 
+  local function scopedSlot(key, slot)
+    return function(scaffoldContext)
+      return compose.RecomposeScope(
+        key,
+        function()
+          if type(slot) == "function" then
+            return slot(scaffoldContext)
+          end
+
+          return slot
+        end
+      )
+    end
+  end
+
   return scaffold.Scaffold({
     background = options.background
       or colors.background,
     navigation = navigation,
-    topBar = options.topBar
-      or defaultTopBar,
+    topBar = scopedSlot(
+      "entrypoint-top-bar",
+      options.topBar or defaultTopBar
+    ),
     content = content,
-    bottomBar = options.bottomBar
-      or defaultBottomBar,
+    bottomBar = scopedSlot(
+      "entrypoint-bottom-bar",
+      options.bottomBar or defaultBottomBar
+    ),
     overlay = overlay,
   })
   end)

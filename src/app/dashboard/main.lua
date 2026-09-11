@@ -5,12 +5,13 @@ local components = require("lib.components.init")
 local telemetry = require("lib.telemetry.receiver")
 local telemetryStore = require("lib.telemetry.store")
 local incidentDashboard = require("lib.telemetry.incidents.dashboard")
-local incidentHistory = require("app.dashboard.incident_history")
+local storage = require("lib.storage.store")
 
 local presenter = require("app.dashboard.presenter")
 
 
 local colors = components.ColorStyle()
+local REFRESH_SECONDS = 1
 
 
 local receiver =
@@ -21,17 +22,35 @@ local dashboard =
 
 local incidents =
     incidentDashboard.create({
-      history = incidentHistory.create(),
+      history = storage.open(
+        "dashboard",
+        "incidents",
+        {
+          version = 1,
+          default = function()
+            return {resolved = {}}
+          end,
+        }
+      ),
     })
 
 compose.App(function()
   local revision =
       compose.remember(0)
 
+  local refreshPending =
+      compose.remember(false)
+
   compose.DisposableEffect(
     "telemetry-port",
     function()
-      receiver:open()
+      local opened, errorMessage = receiver:open()
+
+      assert(
+        opened,
+        "Dashboard could not open the telemetry modem: "
+          .. tostring(errorMessage)
+      )
 
       return function()
         receiver:close()
@@ -62,8 +81,7 @@ compose.App(function()
           if incidentChanged
               or packet.event == "telemetry"
           then
-            revision.value =
-                revision.value + 1
+            refreshPending.value = true
           end
         end
       end
@@ -71,79 +89,31 @@ compose.App(function()
   )
 
   compose.LaunchedEffect(
-    "clock",
+    "dashboard-refresh",
     function()
       while true do
-        compose.delay(1)
+        compose.delay(REFRESH_SECONDS)
 
-        revision.value =
-            revision.value + 1
+        if refreshPending.value then
+          refreshPending.value = false
+          revision.value =
+              revision.value + 1
+        end
       end
     end
   )
-
-
-  local _ =
-      revision.value
-
-  local sources =
-      dashboard:all()
-
-  local sections =
-      presenter.sections(
-        sources,
-        dashboard,
-        colors
-      )
-
-  local content = {}
-
-  for _, section in ipairs(sections) do
-    content[#content + 1] = compose.Text(
-      section.title,
-      compose.Modifier:foreground(colors.primary)
-    )
-
-    content[#content + 1] = components.Grid({
-      rows = section.rows,
-      columns = section.columns,
-      appearance = "alternating",
-      oddBackground = colors.background,
-      evenBackground = colors.surface,
-      cellPadding = 0,
-      cell = section.cell,
-      modifier = compose.Modifier:fillMaxWidth(),
-    })
-
-    content[#content + 1] = compose.Spacer(
-      compose.Modifier:height(1)
-    )
-  end
-
-  if #content == 0 then
-    content[#content + 1] = compose.Text(
-      "WAITING FOR TELEMETRY",
-      compose.Modifier:foreground(colors.muted)
-    )
-  end
-
-  local scrollState =
-      compose.rememberScrollState()
-
-  local currentIncident =
-      incidents:current()
-
-  local activeIncidentCount =
-      incidents:activeCount()
-
 
   return components.Entrypoint({
     title = "Dashboard",
     service = "Telemetry :4242",
     topBarActions = function()
+      local _ = revision.value
+      local sourceCount = dashboard:size()
+      local activeIncidentCount = incidents:activeCount()
+
       return compose.Row({
         compose.Text(
-          tostring(#sources) .. " SOURCES",
+          tostring(sourceCount) .. " SOURCES",
           compose.Modifier:foreground(colors.muted)
         ),
         compose.Spacer(compose.Modifier:width(1)),
@@ -158,6 +128,9 @@ compose.App(function()
       })
     end,
     overlay = function()
+      local _ = revision.value
+      local currentIncident = incidents:current()
+
       if not currentIncident then
         return nil
       end
@@ -182,7 +155,9 @@ compose.App(function()
           compose.Text(
             currentIncident.source
               .. " · "
-              .. currentIncident.sourceId,
+              .. currentIncident.sourceId
+              .. " · "
+              .. currentIncident.address:sub(1, 8),
             compose.Modifier:foreground(colors.muted)
           ),
 
@@ -204,13 +179,54 @@ compose.App(function()
         :background(colors.surfaceVariant)
       )
     end,
-    content = compose.Column(
-      content,
-      compose.Modifier
-      :fillMaxWidth()
-      :fillMaxHeight()
-      :padding(1)
-      :verticalScroll(scrollState)
-    ),
+    content = function()
+      local _ = revision.value
+      local sources = dashboard:all()
+      local sections = presenter.sections(
+        sources,
+        dashboard,
+        colors
+      )
+      local content = {}
+
+      for _, section in ipairs(sections) do
+        content[#content + 1] = components.Section(
+          section.title .. " · " .. tostring(section.count),
+          {
+            components.Grid({
+              rows = section.rows,
+              columns = section.columns,
+              appearance = "alternating",
+              oddBackground = colors.surface,
+              evenBackground = colors.surfaceVariant,
+              horizontalCellPadding = 1,
+              cell = section.cell,
+              modifier = compose.Modifier:fillMaxWidth(),
+            }),
+          }
+        )
+
+        content[#content + 1] = compose.Spacer(
+          compose.Modifier:height(1)
+        )
+      end
+
+      if #content == 0 then
+        content[#content + 1] = compose.Text(
+          "WAITING FOR TELEMETRY",
+          compose.Modifier:foreground(colors.muted)
+        )
+      end
+
+      local scrollState = compose.rememberScrollState()
+
+      return compose.Column(
+        content,
+        compose.Modifier
+        :fillMaxWidth()
+        :fillMaxHeight()
+        :verticalScroll(scrollState)
+      )
+    end,
   })
 end)

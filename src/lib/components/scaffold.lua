@@ -100,7 +100,7 @@ function scaffold.Scaffold(options)
   end
 
   local content =
-      resolveSlot(options.content, "content")
+      resolveSlot(options.content, "content", slotContext)
 
   columnChildren[#columnChildren + 1] =
       compose.Box(
@@ -113,7 +113,7 @@ function scaffold.Scaffold(options)
 
   if options.bottomBar then
     columnChildren[#columnChildren + 1] =
-        resolveSlot(options.bottomBar, "bottomBar")
+        resolveSlot(options.bottomBar, "bottomBar", slotContext)
   end
 
   local column =

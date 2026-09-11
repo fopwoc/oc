@@ -137,8 +137,32 @@ local missing =
 
 assert(
   missing.available == false
-    and missing.technicalName == "minecraft:soul_sand",
-  "missing runtime resources should retain their technical name"
+    and missing.technicalName == "minecraft:soul_sand"
+    and missing.short.samples == 1,
+  "missing runtime resources should not become zero-valued samples"
+)
+
+local missingOnly = analytics.create({
+  id = "missing-only",
+  name = "Missing only",
+  inputs = {
+    {
+      key = "input",
+      name = "example:missing",
+      capacity = 100,
+    },
+  },
+})
+
+missingOnly:sample(0, {inputs = {input = 0}}, {inputs = {}})
+missingOnly:sample(10, {inputs = {input = 0}}, {inputs = {}})
+
+local missingOnlySnapshot = missingOnly:snapshot(10)
+
+assert(
+  missingOnlySnapshot.state == "WARMING"
+    and missingOnlySnapshot.inputs[1].short.samples == 0,
+  "missing resources must not fabricate valid rate history"
 )
 
 local draining = analytics.create({
@@ -149,6 +173,7 @@ local draining = analytics.create({
       key = "input",
       name = "example:input",
       capacity = 1000,
+      capacityPolicy = "expected",
     },
   },
 })
@@ -160,13 +185,40 @@ draining:sample(20, {inputs = {input = 300}})
 local drainingSnapshot = draining:snapshot(20)
 
 assert(
-  drainingSnapshot.efficiency == 100,
-  "draining an existing backlog should still report full efficiency"
+  drainingSnapshot.efficiency == 0
+    and drainingSnapshot.health == 70,
+  "depleting input without replacement should reduce keep-up and health"
 )
 
 assert(
   drainingSnapshot.state == "DRAINING",
   "negative input stock change should be draining"
+)
+
+local balanced = analytics.create({
+  id = "balanced",
+  name = "Balanced line",
+  inputs = {
+    {
+      key = "input",
+      name = "example:input",
+      capacity = 1000,
+      capacityPolicy = "expected",
+    },
+  },
+})
+
+balanced:sample(0, {inputs = {input = 500}})
+balanced:sample(10, {inputs = {input = 400}})
+balanced:sample(20, {inputs = {input = 500}})
+
+local balancedSnapshot = balanced:snapshot(20)
+
+assert(
+  balancedSnapshot.efficiency == 100
+    and balancedSnapshot.health == 100
+    and balancedSnapshot.state == "HEALTHY",
+  "balanced input replenishment and consumption should remain healthy"
 )
 
 draining:setOffline("test disconnect")

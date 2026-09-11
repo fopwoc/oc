@@ -147,6 +147,28 @@ assert(
   "stale temporary writes must not replace valid records"
 )
 
+local save = store.save
+local loggedFailure
+
+store.logger = function(message)
+  loggedFailure = message
+end
+
+store.save = function()
+  error("simulated write failure")
+end
+
+local saved, saveError = store:trySave({samples = {}})
+
+assert(
+  not saved
+    and tostring(saveError):find("simulated write failure", 1, true)
+    and loggedFailure,
+  "trySave should report write failures without crashing the application"
+)
+
+store.save = save
+
 local firstNamespace = storage.open(
   "__storage_test_a__",
   "same-name",

@@ -42,7 +42,9 @@ List installed targets or run one directly:
 - `src/install.lua` — transactional packet installer and remote manifest loader
 - `src/run.lua` — installed target runner with module reload support
 - `src/manifest.lua` — package graph, dependencies, files, and entrypoints
-- `src/lib/compose` — runtime, layout, renderer, input, colors, navigation, and buffers
+- `src/lib/compose` — runtime, layout, renderer, input, colors, and navigation
+- `src/lib/collections` — bounded data structures shared by UI and analytics
+- `src/lib/utils` — time, number, formatting, and series helpers
 - `src/lib/components` — application-level TUI components
 - `src/app` — dashboard and crafter applications
 - `src/test` — suites intended to run inside OpenComputers

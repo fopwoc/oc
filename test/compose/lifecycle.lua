@@ -93,4 +93,55 @@ end)
 
 assert(cleanupCount == 1)
 
+local removedOk, removedError = pcall(function()
+  runWithSignals({
+    {"remove"},
+  }, function()
+    local mounted = runtime.remember(true)
+
+    runtime.LaunchedEffect("driver", function()
+      runtime.awaitEvent("remove")
+      mounted.value = false
+    end)
+
+    if mounted.value then
+      runtime.RecomposeScope("failing-resource", function()
+        runtime.DisposableEffect("resource", function()
+          return function()
+            error("removed cleanup failed")
+          end
+        end)
+
+        return nodes.Text("resource")
+      end)
+    end
+
+    return nodes.Text("root")
+  end)
+end)
+
+assert(
+  not removedOk
+    and tostring(removedError):find("removed cleanup failed", 1, true),
+  "removed scope cleanup failures must reach the application boundary"
+)
+
+local finalOk, finalError = pcall(function()
+  runWithSignals({}, function()
+    runtime.DisposableEffect("failing-resource", function()
+      return function()
+        error("final cleanup failed")
+      end
+    end)
+
+    return nodes.Text("root")
+  end)
+end)
+
+assert(
+  not finalOk
+    and tostring(finalError):find("final cleanup failed", 1, true),
+  "application shutdown cleanup failures must not be swallowed"
+)
+
 print("lifecycle: OK")

@@ -52,10 +52,8 @@ function decimal.approx(value)
 end
 
 function decimal.ratio(numerator, denominator)
-  local numeratorCoefficient, numeratorExponent =
-      scientific(numerator)
-  local denominatorCoefficient, denominatorExponent =
-      scientific(denominator)
+  local numeratorCoefficient, numeratorExponent = scientific(numerator)
+  local denominatorCoefficient, denominatorExponent = scientific(denominator)
 
   if not numeratorCoefficient
       or not denominatorCoefficient
@@ -76,8 +74,10 @@ function decimal.compact(value, suffix)
     return "--"
   end
 
+  suffix = suffix or ""
+
   if coefficient == 0 then
-    return "0" .. (suffix or "")
+    return suffix == "" and "0" or "0 " .. suffix
   end
 
   local unitExponent = math.floor(exponent / 3) * 3
@@ -95,7 +95,7 @@ function decimal.compact(value, suffix)
     return string.format(
       "%.3e%s",
       coefficient * (10 ^ exponent),
-      suffix or ""
+      suffix == "" and "" or " " .. suffix
     )
   end
 
@@ -105,7 +105,7 @@ function decimal.compact(value, suffix)
     "%.3g %s%s",
     scaled,
     units[unitExponent],
-    suffix or ""
+    suffix
   )
 end
 

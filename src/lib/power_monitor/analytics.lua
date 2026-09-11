@@ -1,5 +1,6 @@
-local ringBuffer = require("lib.compose.ring_buffer")
-local decimal = require("lib.power_monitor.decimal")
+local ringBuffer = require("lib.collections.ring_buffer")
+local decimal = require("lib.utils.decimal")
+local clock = require("lib.utils.clock")
 local timeline = require("lib.timeline")
 
 local analytics = {}
@@ -322,9 +323,7 @@ function analytics.create(config, options)
     settings.historyCapacity,
     DEFAULT_HISTORY_CAPACITY
   )
-  local now = options.now or function()
-    return os.time()
-  end
+  local now = options.now or clock.now
   local persisted = options.history or {}
   local metric = {
     id = config.id,
@@ -379,10 +378,14 @@ function analytics.create(config, options)
         metric.timeline:export()
 
     if options.persist then
-      local ok, errorMessage =
+      local called, saved, errorMessage =
           pcall(options.persist, historyState)
 
-      if not ok then
+      if not called then
+        return false, saved
+      end
+
+      if saved == false then
         return false, errorMessage
       end
     end

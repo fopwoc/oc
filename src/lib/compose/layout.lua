@@ -243,8 +243,7 @@ local function measureColumn(
   local verticalScroll =
       getVerticalScroll(node)
 
-  -- В scrollable Column weight не имеет конечного
-  -- viewport-space для распределения.
+  -- A scrollable Column has no finite viewport space for distributing weight.
   local useWeight =
       not verticalScroll
 
@@ -416,7 +415,7 @@ local function measureColumn(
         y + child.height
   end
 
-  -- Column владеет горизонтальной осью.
+  -- Column owns the horizontal axis.
   for _, child in ipairs(children) do
     local horizontal =
         getAlignment(child.node)
@@ -473,8 +472,7 @@ local function measureRow(
   local totalWeight = 0
   local height = 0
 
-  -- Сначала измеряем обычных детей.
-  -- Weighted пока только считаем.
+  -- Measure unweighted children first and only count weighted children.
   for index, child in ipairs(source) do
     local weight =
         getWeight(child)
@@ -546,7 +544,7 @@ local function measureRow(
         availableWidth - fixedWidth
       )
 
-  -- Теперь weighted дети получают свою долю.
+  -- Weighted children now receive their share.
   local remainingWeight =
       totalWeight
 
@@ -633,7 +631,7 @@ local function measureRow(
         x + child.width
   end
 
-  -- Row владеет вертикальной осью.
+  -- Row owns the vertical axis.
   for _, child in ipairs(children) do
     local _, vertical =
         getAlignment(child.node)

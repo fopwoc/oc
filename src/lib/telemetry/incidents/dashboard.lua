@@ -2,12 +2,16 @@ local dashboard = {}
 
 local HISTORY_LIMIT = 32
 
-local function keyFor(source, sourceId, incidentId)
-  return source
-    .. ":"
-    .. sourceId
-    .. ":"
-    .. incidentId
+local function keyPart(value)
+  value = tostring(value)
+  return tostring(#value) .. ":" .. value
+end
+
+local function keyFor(source, sourceId, address, incidentId)
+  return keyPart(source)
+    .. keyPart(sourceId)
+    .. keyPart(address)
+    .. keyPart(incidentId)
 end
 
 local function copyIncident(value)
@@ -15,6 +19,7 @@ local function copyIncident(value)
     key = value.key,
     source = value.source,
     sourceId = value.sourceId,
+    address = value.address,
     id = value.id,
     title = value.title,
     message = value.message,
@@ -39,17 +44,20 @@ local function normalize(packet, value)
 
   local source = packet.source
   local sourceId = packet.id
+  local address = packet.address
 
   if type(source) ~= "string"
       or type(sourceId) ~= "string"
+      or type(address) ~= "string"
   then
     return nil
   end
 
   return {
-    key = keyFor(source, sourceId, value.id),
+    key = keyFor(source, sourceId, address, value.id),
     source = source,
     sourceId = sourceId,
+    address = address,
     id = value.id,
     title = value.title,
     message = value.message,
@@ -172,16 +180,18 @@ function dashboard.create(options)
     local value = packet.data or {}
     local source = packet.source
     local sourceId = packet.id
+    local address = packet.address
     local incidentId = value.id
 
     if type(source) ~= "string"
         or type(sourceId) ~= "string"
+        or type(address) ~= "string"
         or type(incidentId) ~= "string"
     then
       return false
     end
 
-    local key = keyFor(source, sourceId, incidentId)
+    local key = keyFor(source, sourceId, address, incidentId)
     local incident = self.active[key]
 
     if not incident then
@@ -224,6 +234,7 @@ function dashboard.create(options)
     for key, incident in pairs(self.active) do
       if incident.source == packet.source
           and incident.sourceId == packet.id
+          and incident.address == packet.address
           and not seen[key]
       then
         incident.resolvedAt =

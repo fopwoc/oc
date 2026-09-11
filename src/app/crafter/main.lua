@@ -18,6 +18,7 @@ local telemetry =
 
 
 local colors = components.ColorStyle()
+local cells = components.GridCells(colors)
 
 
 local function statusInfo(target)
@@ -110,100 +111,6 @@ compose.App(function()
   )
 
 
-  --
-  -- Depend on scheduler snapshots.
-  --
-  local _ =
-      revision.value
-
-
-  local rows = {}
-
-
-  for _, target in ipairs(
-    scheduler.targets
-  ) do
-    local status,
-    statusColor =
-        statusInfo(target)
-
-    rows[#rows + 1] =
-        components.Card(
-          {
-            compose.Column({
-              compose.Row({
-                  compose.Text(
-                    target.label,
-                    compose.Modifier
-                    :foreground(
-                      colors.primary
-                    )
-                  ),
-
-                  compose.Spacer(
-                    compose.Modifier
-                    :weight(1)
-                  ),
-
-                  compose.Text(
-                    status,
-                    compose.Modifier
-                    :foreground(
-                      statusColor
-                    )
-                  ),
-                },
-                compose.Modifier
-                :fillMaxWidth()
-              ),
-
-              compose.Text(
-                "amount "
-                .. tostring(
-                  target.currentAmount
-                )
-                .. "/"
-                .. tostring(target.amount)
-                .. "   done/h "
-                .. string.format(
-                  "%.1f",
-                  target.completions:perHour(computer.uptime())
-                ),
-                compose.Modifier
-                :foreground(
-                  colors.muted
-                )
-              ),
-            })
-          },
-
-          compose.Modifier
-          :fillMaxWidth()
-          :background(
-            colors.surface
-          ),
-
-          {
-            color =
-                target.status == "crafting"
-                and colors.good
-                or colors.border,
-          }
-        )
-
-    rows[#rows + 1] =
-        compose.Spacer(
-          compose.Modifier
-          :height(1)
-        )
-  end
-
-
-  rows[#rows + 1] =
-      compose.Spacer(
-        compose.Modifier:weight(1)
-      )
-
   return components.Entrypoint({
     title = "Crafter",
     service = "scheduler",
@@ -244,12 +151,78 @@ compose.App(function()
         ),
       })
     end,
-    content = compose.Column(
-      rows,
-      compose.Modifier
-      :fillMaxWidth()
-      :fillMaxHeight()
-      :padding(1)
-    ),
+    content = function()
+      local _ = revision.value
+      local rows = {
+        {
+          "TARGET",
+          "STOCK",
+          "STATE",
+          "DONE/H",
+          "DETAIL",
+        },
+      }
+
+      for _, target in ipairs(scheduler.targets) do
+        local status, statusColor = statusInfo(target)
+        local detail =
+            target.amountError
+            or target.resolveError
+            or (
+              target.status == "crafting"
+              and "request active"
+              or "--"
+            )
+
+        rows[#rows + 1] = {
+          cells:colored(target.label, colors.primary),
+          cells:colored(
+            tostring(target.currentAmount)
+              .. "/"
+              .. tostring(target.amount),
+            colors.text
+          ),
+          cells:colored(status, statusColor),
+          cells:colored(
+            string.format(
+              "%.1f",
+              target.completions:perHour(computer.uptime())
+            ),
+            colors.good
+          ),
+          cells:colored(
+            detail,
+            (target.amountError or target.resolveError)
+              and colors.warning
+              or colors.muted
+          ),
+        }
+      end
+
+      return compose.Column(
+        {
+          components.Section("TARGET QUEUE", {
+            components.Grid({
+              rows = rows,
+              columns = {
+                {weight = 4, align = "left"},
+                {weight = 2, align = "right"},
+                {weight = 2, align = "left"},
+                {weight = 2, align = "right"},
+                {weight = 5, align = "left"},
+              },
+              appearance = "alternating",
+              horizontalCellPadding = 1,
+              cell = cells.render,
+              modifier = compose.Modifier:fillMaxWidth(),
+            }),
+          }),
+          compose.Spacer(compose.Modifier:weight(1)),
+        },
+        compose.Modifier
+        :fillMaxWidth()
+        :fillMaxHeight()
+      )
+    end,
   })
 end)

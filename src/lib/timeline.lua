@@ -1,4 +1,4 @@
-local ringBuffer = require("lib.compose.ring_buffer")
+local ringBuffer = require("lib.collections.ring_buffer")
 
 local timeline = {}
 

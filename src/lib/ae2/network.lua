@@ -184,6 +184,7 @@ local function sampleResources(proxy, resources, keyOf)
         values[key] = 0
       elseif type(result) == "number" then
         values[key] = result
+        records[key] = result
       else
         local amount, amountError =
             itemAmount(result)
@@ -225,6 +226,10 @@ function ae2.create(options)
     end
 
     return self.proxy
+  end
+
+  function instance:invalidate()
+    self.proxy = nil
   end
 
   function instance:isAvailable()
@@ -401,7 +406,7 @@ function ae2.create(options)
         )
 
     if not values then
-      self.proxy = nil
+      self:invalidate()
       return nil, sampleError
     end
 

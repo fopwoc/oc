@@ -103,4 +103,20 @@ assert(
   "transport failures must not prevent local incident state"
 )
 
+local rejected = incidentManager.create({
+  clock = function()
+    return 1
+  end,
+  send = function()
+    return nil, "modem rejected packet"
+  end,
+})
+
+local synced, syncError = rejected:sync()
+
+assert(
+  not synced and syncError == "modem rejected packet",
+  "incident sync should propagate non-throwing transport failures"
+)
+
 print("incidents: OK")

@@ -12,13 +12,14 @@ local colors = components.ColorStyle()
 
 local function statusColor(state)
   if state == "HEALTHY"
-      or state == "DRAINING"
       or state == "IDLE"
   then
     return colors.good
   end
 
-  if state == "WARMING" then
+  if state == "WARMING"
+      or state == "DRAINING"
+  then
     return colors.warning
   end
 
@@ -109,7 +110,7 @@ local function inputGrid(snapshot)
       {weight = 1, align = "right"},
     },
     appearance = "none",
-    cellPadding = 0,
+    horizontalCellPadding = 1,
     cell = cells.render,
     modifier = compose.Modifier:fillMaxWidth(),
   })
@@ -166,7 +167,7 @@ local function outputGrid(snapshot)
       {weight = 1, align = "right"},
     },
     appearance = "none",
-    cellPadding = 0,
+    horizontalCellPadding = 1,
     cell = cells.render,
     modifier = compose.Modifier:fillMaxWidth(),
   })
@@ -291,78 +292,6 @@ compose.App(function()
     end
   )
 
-  local _ = revision.value
-  local snapshot = model:snapshot(compose.uptime())
-  local stateColor = statusColor(snapshot.state)
-  local input = snapshot.inputs[1]
-  local chartValues =
-      input
-      and input.chart
-
-  if not chartValues or #chartValues == 0 then
-    chartValues = {0}
-  end
-
-  local scrollState = compose.rememberScrollState()
-
-  local content = {
-    components.Section("STATUS", {
-      compose.Row({
-        text(snapshot.state, stateColor),
-        compose.Spacer(compose.Modifier:weight(1)),
-        text(
-          "HEALTH " .. format.percent(snapshot.health),
-          stateColor
-        ),
-      }),
-      text(snapshot.reason, colors.muted),
-    }),
-
-    compose.Spacer(compose.Modifier:height(1)),
-
-    components.Section("EFFICIENCY", {
-      components.Progress({
-        value = (snapshot.efficiency or 0) / 100,
-        label = format.percent(snapshot.efficiency),
-        labelContrast = true,
-        fillColor = stateColor,
-        emptyColor = colors.surfaceVariant,
-        modifier = compose.Modifier:fillMaxWidth(),
-      }),
-    }),
-
-    compose.Spacer(compose.Modifier:height(1)),
-
-    components.Section("INPUTS", {
-      inputGrid(snapshot),
-    }),
-
-    compose.Spacer(compose.Modifier:height(1)),
-
-    components.Section("OUTPUTS", {
-      outputGrid(snapshot),
-    }),
-
-    compose.Spacer(compose.Modifier:height(1)),
-
-    components.Section("HISTORY", {
-      components.AreaChart({
-        values = chartValues,
-        height = 5,
-        fillColor = colors.primary,
-        emptyColor = colors.surfaceVariant,
-        modifier = compose.Modifier:fillMaxWidth(),
-      }),
-    }),
-
-    compose.Spacer(compose.Modifier:height(1)),
-
-    components.Section("DIAGNOSIS", {
-      text(snapshot.state, stateColor),
-      text(snapshot.reason, colors.muted),
-    }),
-  }
-
   return components.Entrypoint({
     title = config.name,
     service = "AE2 " .. adapter.kind,
@@ -370,19 +299,80 @@ compose.App(function()
       return components.TelemetryStatus(sender, context)
     end,
     topBarActions = function()
+      local _ = revision.value
+      local snapshot = model:snapshot(compose.uptime())
+
       return text(
         snapshot.offline
           and "OFFLINE"
           or "MONITORING",
-        stateColor
+        statusColor(snapshot.state)
       )
     end,
-    content = compose.Column(
-      content,
-      compose.Modifier
-      :fillMaxWidth()
-      :fillMaxHeight()
-      :verticalScroll(scrollState)
-    ),
+    content = function()
+      local _ = revision.value
+      local snapshot = model:snapshot(compose.uptime())
+      local stateColor = statusColor(snapshot.state)
+      local input = snapshot.inputs[1]
+      local chartValues = input and input.chart
+
+      if not chartValues or #chartValues == 0 then
+        chartValues = {0}
+      end
+
+      local scrollState = compose.rememberScrollState()
+      local content = {
+        components.Section("LINE STATUS", {
+          compose.Row({
+            text(snapshot.state, stateColor),
+            compose.Spacer(compose.Modifier:weight(1)),
+            text("HEALTH " .. format.percent(snapshot.health), stateColor),
+            compose.Spacer(compose.Modifier:width(2)),
+            text("KEEP-UP " .. format.percent(snapshot.efficiency), colors.primary),
+          }),
+          text(snapshot.reason, colors.muted),
+          components.Progress({
+            value = (snapshot.efficiency or 0) / 100,
+            label = "KEEP-UP " .. format.percent(snapshot.efficiency),
+            labelContrast = true,
+            fillColor = stateColor,
+            emptyColor = colors.surfaceVariant,
+            modifier = compose.Modifier:fillMaxWidth(),
+          }),
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Section("INPUTS", {
+          inputGrid(snapshot),
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Section("OUTPUTS", {
+          outputGrid(snapshot),
+        }),
+
+        compose.Spacer(compose.Modifier:height(1)),
+
+        components.Section("INPUT HISTORY", {
+          components.AreaChart({
+            values = chartValues,
+            height = 5,
+            fillColor = colors.primary,
+            emptyColor = colors.surfaceVariant,
+            modifier = compose.Modifier:fillMaxWidth(),
+          }),
+        }),
+      }
+
+      return compose.Column(
+        content,
+        compose.Modifier
+        :fillMaxWidth()
+        :fillMaxHeight()
+        :verticalScroll(scrollState)
+      )
+    end,
   })
 end)

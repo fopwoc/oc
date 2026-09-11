@@ -8,7 +8,7 @@ The target is a character framebuffer with expensive GPU calls, limited Lua memo
 
 The repository is organized as a source tree that can also act as a package repository. `src/manifest.lua` describes named packages. Each package declares its files, dependencies, optional runnable entrypoint, and description. The installer resolves the dependency graph before downloading files, so an application can depend on shared compose or telemetry packages without duplicating their contents.
 
-The installer uses a staging directory. It downloads the manifest and package files into staging, validates the paths, and only then commits the complete installation. Existing files are moved into temporary backups during the commit and restored if a later replacement fails. This keeps a failed update from leaving a half-installed runtime or destroying the currently installed manifest.
+The installer uses a staging directory. It downloads the manifest and package files into staging, validates the paths, and only then commits the complete installation. Existing files are moved into temporary backups during the commit and restored if a later replacement fails. Files retired by the new package graph go through the same backup-and-rollback path instead of accumulating forever. This keeps a failed update from leaving a half-installed runtime or destroying the currently installed manifest.
 
 The manifest is a first-class part of the packet manager. `--list` attempts to refresh it from the configured source and falls back to the local copy when the source is unavailable. `--dry-run` resolves the same package graph and prints the planned packages and files without writing them. The source URL is stored locally so a computer can switch between the public repository and a local development server.
 
@@ -148,7 +148,11 @@ These are not separate rendering systems. They return the same compose nodes and
 
 OpenComputers memory is finite and the Lua VM may retain allocations until garbage collection. Unbounded event histories are therefore unsafe by default.
 
-`RingBuffer` stores a fixed number of records and overwrites the oldest record when full. It never shifts the remaining entries or creates a complete snapshot on every append. `BufferView` subscribes only while it is composed, so a hidden stream does not keep a visible list recomposing.
+The general-purpose `collections.RingBuffer` stores a fixed number of records and overwrites the oldest record when full. It lives outside Compose because timelines, analytics, and UI streams all use it. It never shifts the remaining entries or creates a complete snapshot on every append. `BufferView` subscribes only while it is composed, so a hidden stream does not keep a visible list recomposing.
+
+The telemetry dashboard likewise caps its live source registry and evicts the least recently seen source when full. Telemetry and incident identities include the sender address and use length-prefixed fields rather than delimiter concatenation, so configured IDs cannot accidentally overwrite one another. The modem transport resolves its primary component for each send, reports non-throwing hardware failures, and distinguishes a port it opened from one that was already open.
+
+Persistent history uses a shared OpenComputers-aware clock. OpenComputers reports `os.time()` in accelerated in-game seconds, so the clock converts it back to elapsed server seconds before values enter real-time chart windows. This keeps timestamps persistent across computer restarts without making a 15-minute chart advance at Minecraft-day speed.
 
 When the user is already at the end of a stream, new records keep the view at the end. If the user scrolls upward, new records do not steal their position. That is the behavior expected from a useful compact TUI log or event panel.
 

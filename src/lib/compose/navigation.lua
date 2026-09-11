@@ -1,6 +1,5 @@
 local runtime = require("lib.compose.runtime")
 local nodes = require("lib.compose.nodes")
-local modifier = require("lib.compose.modifier")
 
 local navigation = {}
 
@@ -235,12 +234,9 @@ function navigation.display(
       "NavDisplay destination must return a node"
     )
 
-    children[#children + 1] =
-        nodes.Box(
-          { content },
-          modifier.Modifier
-          :visible(entry == current)
-        )
+    if entry == current then
+      children[1] = nodes.Box({content})
+    end
   end
 
   return nodes.Box(children, modifierValue)

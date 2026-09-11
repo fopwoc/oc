@@ -19,6 +19,20 @@ local function positiveNumber(value, fallback)
   return fallback
 end
 
+local function flowBalance(arrivalRate, processingRate, epsilon)
+  local largest = math.max(arrivalRate, processingRate)
+
+  if largest <= epsilon then
+    return nil
+  end
+
+  return clamp(
+    math.min(arrivalRate, processingRate) / largest,
+    0,
+    1
+  )
+end
+
 local function resourceKey(resource, index)
   if resource.key then
     return tostring(resource.key)
@@ -288,7 +302,7 @@ local function reasonFor(state, values)
   end
 
   if state == "DRAINING" then
-    return "processing existing input backlog"
+    return "input supply below consumption"
   end
 
   if state == "IDLE" then
@@ -311,8 +325,8 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
   local valid = false
   local arrivals = 0
   local processing = 0
-  local minEfficiency = 1
-  local hasEfficiency = false
+  local minimumKeepUp = 1
+  local hasKeepUp = false
   local backlogGrowing = false
   local backlogDraining = false
   local storagePressure = false
@@ -337,44 +351,50 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
   end
 
   for _, input in ipairs(inputs) do
-    valid = valid or input.short.valid
-    arrivals = arrivals + input.arrivalRate
-    processing = processing + input.processingRate
+    if input.available ~= false then
+      valid = valid or input.short.valid
+      arrivals = arrivals + input.arrivalRate
+      processing = processing + input.processingRate
 
-    if input.amount > 0 then
-      hasStoredInput = true
-    end
+      if input.amount > 0 then
+        hasStoredInput = true
+      end
 
-    inspectCapacity(input, input)
+      inspectCapacity(input, input)
 
-    if input.backlogRate > options.rateEpsilon then
-      backlogGrowing = true
-    elseif input.backlogRate < -options.rateEpsilon then
-      backlogDraining = true
-    end
+      if input.backlogRate > options.rateEpsilon then
+        backlogGrowing = true
+      elseif input.backlogRate < -options.rateEpsilon then
+        backlogDraining = true
+      end
 
-    if input.arrivalRate > options.rateEpsilon then
-      hasEfficiency = true
-      minEfficiency = math.min(
-        minEfficiency,
-        clamp(
-          input.processingRate / input.arrivalRate,
-          0,
-          1
-        )
+      local balance = flowBalance(
+        input.arrivalRate,
+        input.processingRate,
+        options.rateEpsilon
       )
+
+      if balance then
+        hasKeepUp = true
+        minimumKeepUp = math.min(
+          minimumKeepUp,
+          balance
+        )
+      end
     end
   end
 
   local outputActivity = false
 
   for _, output in ipairs(outputs) do
-    valid = valid or output.short.valid
+    if output.available ~= false then
+      valid = valid or output.short.valid
 
-    inspectCapacity(output, output)
+      inspectCapacity(output, output)
 
-    if output.productionRate > options.rateEpsilon then
-      outputActivity = true
+      if output.productionRate > options.rateEpsilon then
+        outputActivity = true
+      end
     end
   end
 
@@ -387,12 +407,10 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
     }
   end
 
-  local efficiency
+  local keepUp
 
-  if hasEfficiency then
-    efficiency = minEfficiency
-  elseif processing > options.rateEpsilon then
-    efficiency = 1
+  if hasKeepUp then
+    keepUp = minimumKeepUp
   end
 
   local health = 100
@@ -404,9 +422,9 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
     health = health - 25
   end
 
-  if efficiency then
+  if keepUp then
     health = health
-        - math.floor((1 - efficiency) * 30)
+        - math.floor((1 - keepUp) * 30)
   end
 
   health = clamp(health, 0, 100)
@@ -423,7 +441,7 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
   elseif storagePressure then
     state = "OVERLOADED"
     health = math.min(health, 45)
-  elseif not hasEfficiency
+  elseif not hasKeepUp
       and processing <= options.rateEpsilon
       and not outputActivity
   then
@@ -441,8 +459,8 @@ local function diagnose(inputs, outputs, options, offline, errorMessage)
   }
 
   return {
-    efficiency = efficiency
-        and math.floor(efficiency * 100 + 0.5)
+    efficiency = keepUp
+        and math.floor(keepUp * 100 + 0.5)
         or nil,
     health = health,
     state = state,
@@ -519,6 +537,12 @@ function analytics.create(config)
       },
     }) do
       for _, resource in ipairs(group.resources) do
+        local record =
+            group.records
+            and group.records[resource.key]
+        local available =
+            not group.records
+            or record ~= nil
         local amount =
             group.values
             and group.values[resource.key]
@@ -527,13 +551,8 @@ function analytics.create(config)
         resource.amount =
             math.max(0, tonumber(amount) or 0)
 
-        local record =
-            group.records
-            and group.records[resource.key]
-
         if group.records then
-          resource.available =
-              record ~= nil
+          resource.available = available
         else
           resource.available = nil
         end
@@ -547,10 +566,12 @@ function analytics.create(config)
               or resource.label
         end
 
-        resource.history:commit(
-          time,
-          resource.amount
-        )
+        if available then
+          resource.history:commit(
+            time,
+            resource.amount
+          )
+        end
       end
     end
 

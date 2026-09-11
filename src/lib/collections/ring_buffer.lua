@@ -37,16 +37,14 @@ function RingBuffer:version()
 end
 
 function RingBuffer:get(index)
-  if
-      type(index) ~= "number"
+  if type(index) ~= "number"
       or index < 1
       or index > self.count
   then
     return nil
   end
 
-  local offset = index - 1
-  local position = self.head + offset
+  local position = self.head + index - 1
 
   while position > self.limit do
     position = position - self.limit
@@ -62,10 +60,7 @@ function RingBuffer:notify()
 end
 
 function RingBuffer:push(value)
-  assert(
-    value ~= nil,
-    "RingBuffer cannot store nil"
-  )
+  assert(value ~= nil, "RingBuffer cannot store nil")
 
   local position
 

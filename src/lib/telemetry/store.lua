@@ -1,27 +1,56 @@
 local store = {}
+local DEFAULT_CAPACITY = 128
+
+local function keyPart(value)
+  value = tostring(value or "")
+  return tostring(#value) .. ":" .. value
+end
 
 local function clock()
   return require("computer").uptime()
 end
 
 local function keyFor(packet)
-  local key =
-      packet.source .. ":" .. packet.id
-
-  if packet.address then
-    key = key .. ":" .. tostring(packet.address)
-  end
-
-  return key
+  return keyPart(packet.source)
+    .. keyPart(packet.id)
+    .. keyPart(packet.address)
 end
 
 function store.create(options)
   options = options or {}
 
   local now = options.clock or clock
+  local capacity = options.capacity or DEFAULT_CAPACITY
+
+  assert(
+    type(capacity) == "number"
+      and capacity >= 1
+      and capacity == math.floor(capacity),
+    "Telemetry store capacity must be a positive integer"
+  )
+
   local instance = {
     sources = {},
+    count = 0,
+    capacity = capacity,
   }
+
+  local function evictOldest()
+    local oldestKey
+    local oldest
+
+    for key, source in pairs(instance.sources) do
+      if not oldest or source.lastSeen < oldest.lastSeen then
+        oldestKey = key
+        oldest = source
+      end
+    end
+
+    if oldestKey then
+      instance.sources[oldestKey] = nil
+      instance.count = instance.count - 1
+    end
+  end
 
   function instance:update(packet)
     assert(
@@ -34,6 +63,10 @@ function store.create(options)
     local source = self.sources[key]
 
     if not source then
+      if self.count >= self.capacity then
+        evictOldest()
+      end
+
       source = {
         source = packet.source,
         id = packet.id,
@@ -46,6 +79,7 @@ function store.create(options)
       }
 
       self.sources[key] = source
+      self.count = self.count + 1
     end
 
     source.address = packet.address
@@ -58,12 +92,9 @@ function store.create(options)
   end
 
   function instance:get(source, id)
-    local prefix = source .. ":" .. id
-
-    for key, value in pairs(self.sources) do
-      if key == prefix
-          or key:sub(1, #prefix + 1)
-              == prefix .. ":"
+    for _, value in pairs(self.sources) do
+      if value.source == source
+          and value.id == id
       then
         return value
       end
@@ -91,6 +122,10 @@ function store.create(options)
     )
 
     return result
+  end
+
+  function instance:size()
+    return self.count
   end
 
   function instance:age(source)

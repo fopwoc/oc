@@ -45,41 +45,77 @@ end
 
 local function lineStateColor(state, colors)
   if state == "HEALTHY"
-      or state == "DRAINING"
       or state == "IDLE"
   then
     return colors.good
   end
 
-  if state == "WARMING" then
+  if state == "WARMING"
+      or state == "DRAINING"
+  then
     return colors.warning
   end
 
   return colors.bad
 end
 
-local function crafterStateColor(state, colors)
-  if state == "ready"
-      or state == "cooldown"
+local function crafterCounts(data)
+  local metrics = data.targetMetrics
+  local targets = data.targets
+
+  if type(targets) ~= "number" then
+    targets = type(metrics) == "table"
+      and #metrics
+      or 0
+  end
+
+  local active
+
+  if type(data.crafting) == "number"
+      and type(data.requesting) == "number"
   then
-    return colors.good
+    active = data.crafting + data.requesting
+  elseif type(metrics) == "table" then
+    active = 0
+
+    for _, target in ipairs(metrics) do
+      if target.status == "crafting"
+          or target.status == "requesting"
+      then
+        active = active + 1
+      end
+    end
   end
 
-  if state == "requesting"
-      or state == "waiting"
-  then
-    return colors.warning
-  end
-
-  if state == "crafting" then
-    return colors.primary
-  end
-
-  return colors.bad
+  return targets, active
 end
 
-local function crafterState(state)
-  return tostring(state or "unknown"):upper()
+local function crafterSatisfaction(data)
+  if type(data.satisfaction) == "number" then
+    return math.max(0, math.min(100, data.satisfaction))
+  end
+
+  local metrics = data.targetMetrics
+
+  if type(metrics) ~= "table" or #metrics == 0 then
+    return nil
+  end
+
+  local total = 0
+
+  for _, target in ipairs(metrics) do
+    local desired = tonumber(target.targetAmount)
+    local current = tonumber(target.currentAmount)
+
+    if not desired or desired <= 0 or not current then
+      return nil
+    end
+
+    total = total
+        + math.max(0, math.min(1, current / desired))
+  end
+
+  return math.floor(total / #metrics * 100 + 0.5)
 end
 
 local function crafterRows(sources, dashboard, colors, cells)
@@ -87,9 +123,9 @@ local function crafterRows(sources, dashboard, colors, cells)
     {
       "SOURCE",
       "STATE",
-      "ITEM",
-      "AMOUNT",
-      "ACTIVITY",
+      "TARGETS",
+      "ACTIVE",
+      "SAT",
       "DONE/H",
       "SEEN",
       "UP",
@@ -110,74 +146,36 @@ local function crafterRows(sources, dashboard, colors, cells)
       activityColor = statusColor
     end
 
-    local targetMetrics = data.targetMetrics
+    local targets, active = crafterCounts(data)
+    local satisfaction = crafterSatisfaction(data)
 
-    if type(targetMetrics) == "table"
-        and #targetMetrics > 0
-    then
-      for _, target in ipairs(targetMetrics) do
-        local targetState =
-            status ~= "ONLINE"
-            and status
-            or crafterState(target.status)
-        local targetColor =
-            status ~= "ONLINE"
-            and statusColor
-            or crafterStateColor(target.status, colors)
-
-        rows[#rows + 1] = {
-          cells:colored(source.id, colors.primary),
-          cells:colored(activity, activityColor),
-          cells:colored(target.label or "-", colors.text),
-          cells:colored(
-            tostring(target.currentAmount or 0)
-              .. "/"
-              .. tostring(target.targetAmount or 0),
-            targetColor
-          ),
-          cells:colored(targetState, targetColor),
-          cells:colored(
-            target.completedPerHour
-              and string.format("%.1f", target.completedPerHour)
-              or "--",
-            colors.good
-          ),
-          cells:colored(
-            format.age(dashboard:age(source)),
-            colors.muted
-          ),
-          cells:colored(
-            format.uptime(source.remoteUptime),
-            colors.muted
-          ),
-        }
-      end
-    else
-      rows[#rows + 1] = {
-        cells:colored(source.id, colors.primary),
-        cells:colored(activity, activityColor),
-        cells:colored(
-          tostring(data.targets or 0) .. " TARGETS",
-          colors.text
-        ),
-        cells:colored("--/--", colors.muted),
-        cells:colored("LEGACY", colors.muted),
-        cells:colored(
-          data.completedPerHour
-            and string.format("%.1f", data.completedPerHour)
-            or "--",
-          colors.good
-        ),
-        cells:colored(
-          format.age(dashboard:age(source)),
-          colors.muted
-        ),
-        cells:colored(
-          format.uptime(source.remoteUptime),
-          colors.muted
-        ),
-      }
-    end
+    rows[#rows + 1] = {
+      cells:colored(source.id, colors.primary),
+      cells:colored(activity, activityColor),
+      cells:colored(tostring(targets), colors.text),
+      cells:colored(
+        active ~= nil and tostring(active) or "--",
+        active and active > 0 and colors.primary or colors.muted
+      ),
+      cells:colored(
+        format.percent(satisfaction),
+        satisfaction == 100 and colors.good or colors.primary
+      ),
+      cells:colored(
+        data.completedPerHour
+          and string.format("%.1f", data.completedPerHour)
+          or "--",
+        colors.good
+      ),
+      cells:colored(
+        format.age(dashboard:age(source)),
+        colors.muted
+      ),
+      cells:colored(
+        format.uptime(source.remoteUptime),
+        colors.muted
+      ),
+    }
   end
 
   return rows
@@ -189,7 +187,7 @@ local function lineRows(sources, dashboard, colors, cells)
       "SOURCE",
       "STATE",
       "LINE",
-      "EFF",
+      "KEEP-UP",
       "HEALTH",
       "REASON",
       "SEEN",
@@ -242,6 +240,7 @@ local function powerRows(sources, dashboard, colors, cells)
       "NET",
       "ETA",
       "SEEN",
+      "UP",
     },
   }
 
@@ -296,6 +295,10 @@ local function powerRows(sources, dashboard, colors, cells)
         format.age(dashboard:age(source)),
         colors.muted
       ),
+      cells:colored(
+        format.uptime(source.remoteUptime),
+        colors.muted
+      ),
     }
   end
 
@@ -342,10 +345,10 @@ end
 local function crafterColumns()
   return {
     {weight = 2, align = "left"},
-    {weight = 1, align = "left"},
-    {weight = 3, align = "left"},
-    {weight = 2, align = "right"},
     {weight = 2, align = "left"},
+    {weight = 1, align = "right"},
+    {weight = 1, align = "right"},
+    {weight = 1, align = "right"},
     {weight = 1, align = "right"},
     {weight = 1, align = "right"},
     {weight = 1, align = "right"},
@@ -374,6 +377,7 @@ local function powerColumns()
     {weight = 1, align = "right"},
     {weight = 2, align = "right"},
     {weight = 2, align = "right"},
+    {weight = 1, align = "right"},
     {weight = 1, align = "right"},
   }
 end
@@ -428,6 +432,7 @@ local function sectionFor(typeName, sources, dashboard, colors, cells)
 
   return {
     title = typeTitle(typeName),
+    count = #sources,
     rows = rows,
     columns = columns,
     cell = cells.render,

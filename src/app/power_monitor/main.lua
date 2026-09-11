@@ -1,12 +1,13 @@
 local compose = require("lib.compose.init")
 local components = require("lib.components.init")
 local configLoader = require("lib.config.loader")
+local storage = require("lib.storage.store")
+local clock = require("lib.utils.clock")
 local format = require("lib.utils.format")
 local telemetry = require("lib.telemetry.sender")
 
 local powerAdapter = require("lib.gt.lapotronic")
 local powerAnalytics = require("lib.power_monitor.analytics")
-local powerHistory = require("app.power_monitor.history")
 local settings = require("app.power_monitor.settings")
 
 local colors = components.ColorStyle()
@@ -67,27 +68,23 @@ end
 
 local function detail(context, model)
   local window = compose.remember(15 * 60)
-  local metric = model:snapshot(os.time())
+  local metric = model:snapshot(clock.now())
   local color = stateColor(metric)
   local exactEnergy, scaledEnergy =
       energyPairs(metric)
-  local values = model:chart(window.value, os.time())
+  local values = model:chart(window.value, clock.now())
 
   if #values == 0 then
     values = {metric.fill or 0}
   end
 
   local rows = {
-    {"VALUE", "CURRENT", "24H"},
-    {"Fill", percent(metric.fill), percent(metric.averageFill24h)},
-    {"Input", format.powerRate(metric.input), format.powerRate(metric.averageInput24h)},
-    {"Output", format.powerRate(metric.output), format.powerRate(metric.averageOutput24h)},
-    {"Net", format.powerRate(metric.net), format.powerRate(metric.averageNet24h)},
-    {"30s net", format.powerRate(metric.net30s), "--"},
-    {"5m net", format.powerRate(metric.net5m), "--"},
-    {"Minimum fill", percent(metric.fill), percent(metric.minimumFill24h)},
-    {"ETA empty", metric.etaSeconds and format.duration(metric.etaSeconds) or "--", "--"},
-    {"Stored", format.energy(metric.stored), format.energy(metric.capacity)},
+    {"SIGNAL", "NOW", "5M", "24H"},
+    {"Input", format.powerRate(metric.input), "--", format.powerRate(metric.averageInput24h)},
+    {"Output", format.powerRate(metric.output), "--", format.powerRate(metric.averageOutput24h)},
+    {"Net", format.powerRate(metric.net), format.powerRate(metric.net5m), format.powerRate(metric.averageNet24h)},
+    {"Minimum fill", "--", "--", percent(metric.minimumFill24h)},
+    {"Empty ETA", metric.etaSeconds and format.duration(metric.etaSeconds) or "--", "--", "--"},
   }
 
   local chartWindowLabels = {
@@ -117,7 +114,7 @@ local function detail(context, model)
   end
 
   return compose.Column({
-    components.Section("STATUS", {
+    components.Section("POWER STATUS", {
       compose.Row({
         compose.Text(
           stateLabel(metric),
@@ -125,14 +122,18 @@ local function detail(context, model)
         ),
         compose.Spacer(compose.Modifier:weight(1)),
         compose.Text(
-          exactEnergy,
+          "FILL " .. percent(metric.fill),
           compose.Modifier:foreground(color)
         ),
       }),
       compose.Row({
-        compose.Spacer(compose.Modifier:weight(1)),
         compose.Text(
           scaledEnergy,
+          compose.Modifier:foreground(colors.text)
+        ),
+        compose.Spacer(compose.Modifier:weight(1)),
+        compose.Text(
+          exactEnergy,
           compose.Modifier:foreground(colors.muted)
         ),
       }),
@@ -151,9 +152,10 @@ local function detail(context, model)
           {weight = 2, align = "left"},
           {weight = 2, align = "right"},
           {weight = 2, align = "right"},
+          {weight = 2, align = "right"},
         },
         appearance = "alternating",
-        cellPadding = 0,
+        horizontalCellPadding = 1,
         cell = cells.render,
         modifier = compose.Modifier:fillMaxWidth(),
       }),
@@ -212,7 +214,22 @@ local target = {
   address = address,
 }
 
-local historyStore = powerHistory.create()
+local historyStore = storage.open(
+  "power-monitor",
+  "history",
+  {
+    version = 3,
+    default = function()
+      return {
+        buckets = {},
+        timeline = {
+          version = 1,
+          tiers = {},
+        },
+      }
+    end,
+  }
+)
 local historyState = historyStore:load()
 local model = powerAnalytics.create(
   config,
@@ -220,7 +237,7 @@ local model = powerAnalytics.create(
     settings = settings,
     history = historyState,
     persist = function(state)
-      return historyStore:save(state)
+      return historyStore:trySave(state)
     end,
   }
 )
@@ -237,7 +254,7 @@ compose.App(function()
     "power-monitor-sampling",
     function()
       while true do
-        local sampledAt = os.time()
+        local sampledAt = clock.now()
 
         local reading, errorMessage =
             adapter:sample(target)
@@ -260,8 +277,6 @@ compose.App(function()
     end
   )
 
-  local _ = revision.value
-
   return components.Entrypoint({
     title = config.name,
     service = "GTNH POWER",
@@ -269,6 +284,7 @@ compose.App(function()
       return components.TelemetryStatus(sender, context)
     end,
     content = function(context)
+      local _ = revision.value
       return detail(context, model)
     end,
   })

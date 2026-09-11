@@ -12,15 +12,6 @@ local craftableResolver =
 local ae2 =
     require("lib.ae2.network")
 
-local me =
-    assert(
-      ae2.resolveProxy(),
-      "No ME controller or interface component found"
-    )
-
-local adapter =
-    ae2.create()
-
 local POLL_INTERVAL = 0.25
 
 local function positiveInteger(value, fallback)
@@ -178,12 +169,14 @@ local function createTarget(
   }
 end
 
-local function refreshTarget(target, now)
+local function refreshTarget(target, now, adapter)
   local amount, errorMessage, stack =
       adapter:getAmountInNetwork(target)
 
   if amount == nil then
+    adapter:invalidate()
     target.amountError = errorMessage
+    target.craftable = nil
 
     if not target.job then
       target.resolveError = errorMessage
@@ -378,7 +371,8 @@ end
 
 local function requestTarget(
     target,
-    now
+    now,
+    adapter
 )
   if target.job then
     return false
@@ -400,7 +394,7 @@ local function requestTarget(
   if not target.craftable then
     local resolved, errorMessage =
         craftableResolver.resolve(
-          me,
+          adapter,
           target
         )
 
@@ -485,6 +479,8 @@ function scheduler.create(config)
   local instance = {
     targets = {},
 
+    adapter = ae2.create({address = config.meAddress}),
+
     maxConcurrent = maxConcurrent,
 
     running = true,
@@ -518,8 +514,8 @@ function scheduler.create(config)
     local cooldown = 0
 
     local completedPerHour = 0
+    local satisfactionTotal = 0
     local now = computer.uptime()
-    local targetMetrics = {}
 
     for _, target in ipairs(self.targets) do
       if target.status == "crafting" then
@@ -535,13 +531,19 @@ function scheduler.create(config)
       completedPerHour = completedPerHour
           + target.completions:perHour(now)
 
-      targetMetrics[#targetMetrics + 1] = {
-        label = target.label,
-        currentAmount = target.currentAmount,
-        targetAmount = target.amount,
-        status = target.status,
-        completedPerHour = target.completions:perHour(now),
-      }
+      satisfactionTotal = satisfactionTotal
+          + math.min(
+            1,
+            target.currentAmount / target.amount
+          )
+    end
+
+    local satisfaction
+
+    if #self.targets > 0 then
+      satisfaction = math.floor(
+        satisfactionTotal / #self.targets * 100 + 0.5
+      )
     end
 
     return {
@@ -552,7 +554,7 @@ function scheduler.create(config)
       waiting = waiting,
       cooldown = cooldown,
       completedPerHour = completedPerHour,
-      targetMetrics = targetMetrics,
+      satisfaction = satisfaction,
     }
   end
 
@@ -574,7 +576,8 @@ function scheduler.create(config)
 
       refreshTarget(
         target,
-        now
+        now,
+        self.adapter
       )
     end
 
@@ -619,7 +622,8 @@ function scheduler.create(config)
         local accepted =
             requestTarget(
               target,
-              now
+              now,
+              self.adapter
             )
 
         if accepted then

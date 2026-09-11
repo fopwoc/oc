@@ -226,6 +226,8 @@ local function validateManifest(manifest)
     "Invalid manifest"
   )
 
+  local fileOwners = {}
+
   for name, target in pairs(manifest) do
     assert(
       type(name) == "string"
@@ -255,9 +257,29 @@ local function validateManifest(manifest)
       "Manifest dependencies must be a table: " .. name
     )
 
+    local declaredFiles = {}
+
     for _, path in ipairs(files) do
       validateRelativePath(path)
+
+      assert(
+        not declaredFiles[path],
+        "Duplicate file in package " .. name .. ": " .. path
+      )
+
+      assert(
+        not fileOwners[path],
+        "File belongs to multiple packages: " .. path
+      )
+
+      declaredFiles[path] = true
+      fileOwners[path] = name
     end
+
+    assert(
+      target.run == nil or declaredFiles[target.run],
+      "Entrypoint is not included in package files: " .. name
+    )
 
     for _, dependency in ipairs(depends) do
       assert(
@@ -266,6 +288,38 @@ local function validateManifest(manifest)
         "Manifest dependency must be a non-empty string: " .. name
       )
     end
+  end
+
+  local visiting = {}
+  local visited = {}
+
+  local function visit(name)
+    assert(
+      manifest[name],
+      "Unknown manifest dependency: " .. tostring(name)
+    )
+
+    assert(
+      not visiting[name],
+      "Manifest dependency cycle includes: " .. name
+    )
+
+    if visited[name] then
+      return
+    end
+
+    visiting[name] = true
+
+    for _, dependency in ipairs(manifest[name].depends or {}) do
+      visit(dependency)
+    end
+
+    visiting[name] = nil
+    visited[name] = true
+  end
+
+  for name in pairs(manifest) do
+    visit(name)
   end
 end
 
@@ -326,12 +380,14 @@ local function commit(entries, stage)
         )
       end
 
-      ensureParent(destination)
+      if not entry.remove then
+        ensureParent(destination)
 
-      assert(
-        filesystem.rename(entry.staged, destination),
-        "Failed to install file: " .. destination
-      )
+        assert(
+          filesystem.rename(entry.staged, destination),
+          "Failed to install file: " .. destination
+        )
+      end
 
       entry.committed = true
       committed[#committed + 1] = entry
@@ -448,25 +504,59 @@ local function resolvePackages(manifest, installed)
   return resolved
 end
 
-local function install(source, installed)
+local function packageFiles(manifest, installed)
+  local files = {}
+
+  for name in pairs(resolvePackages(manifest, installed)) do
+    for _, path in ipairs(manifest[name].files or {}) do
+      addFile(files, path)
+    end
+  end
+
+  return files
+end
+
+local function previousPackageFiles(installed)
+  if not filesystem.exists(MANIFEST_FILE) then
+    return {}
+  end
+
+  local ok, manifest = pcall(loadLocalManifest)
+
+  if not ok then
+    return {}
+  end
+
+  local selected = {}
+
+  if contains(installed, "all") then
+    selected[1] = "all"
+  else
+    for _, name in ipairs(installed) do
+      if manifest[name] then
+        selected[#selected + 1] = name
+      end
+    end
+  end
+
+  if #selected == 0 then
+    return {}
+  end
+
+  return packageFiles(manifest, selected)
+end
+
+local function install(source, installed, previousInstalled)
   local stage = createStage()
+  local previousFiles = previousPackageFiles(previousInstalled)
 
   local ok, err = pcall(function()
     local manifest, stagedManifest =
       loadRemoteManifest(source, stage)
 
-    local resolved =
-      resolvePackages(manifest, installed)
-
-    local files = {}
+    local files = packageFiles(manifest, installed)
     addFile(files, "install.lua")
     addFile(files, "run.lua")
-
-    for name in pairs(resolved) do
-      for _, path in ipairs(manifest[name].files or {}) do
-        addFile(files, path)
-      end
-    end
 
     local entries = {
       {
@@ -485,6 +575,16 @@ local function install(source, installed)
         staged = staged,
         destination = filesystem.concat(ROOT, path),
       }
+    end
+
+    for _, path in ipairs(sortedFiles(previousFiles)) do
+      if not files[path] then
+        print("Removing " .. path)
+        entries[#entries + 1] = {
+          destination = filesystem.concat(ROOT, path),
+          remove = true,
+        }
+      end
     end
 
     entries[#entries + 1] = {
@@ -547,10 +647,12 @@ local function selectInstalled(current, requested)
   end
 
   if requested then
-    if not contains(current, "all") then
-      for _, name in ipairs(current) do
-        result[#result + 1] = name
-      end
+    if contains(current, "all") then
+      return {"all"}
+    end
+
+    for _, name in ipairs(current) do
+      result[#result + 1] = name
     end
 
     if not contains(result, requested) then
@@ -571,13 +673,14 @@ local function selectInstalled(current, requested)
   return result
 end
 
-local function printInstallPlan(source, installed)
+local function printInstallPlan(source, installed, previousInstalled)
   local stage = createStage()
+  local previousFiles = previousPackageFiles(previousInstalled)
 
   local ok, err = pcall(function()
     local manifest = loadRemoteManifest(source, stage)
     local resolved = resolvePackages(manifest, installed)
-    local files = {}
+    local files = packageFiles(manifest, installed)
 
     addFile(files, "install.lua")
     addFile(files, "manifest.lua")
@@ -608,6 +711,22 @@ local function printInstallPlan(source, installed)
     for _, path in ipairs(sortedFiles(files)) do
       print("  " .. path)
     end
+
+    local removals = {}
+
+    for path in pairs(previousFiles) do
+      if not files[path] then
+        removals[path] = true
+      end
+    end
+
+    if next(removals) then
+      print("Remove:")
+
+      for _, path in ipairs(sortedFiles(removals)) do
+        print("  " .. path)
+      end
+    end
   end)
 
   cleanupStage(stage)
@@ -619,6 +738,7 @@ end
 
 local source = readSource()
 local installed = loadInstalled()
+local previousInstalled = installed
 
 local requestedTarget = args[1]
 local runAfterInstall = false
@@ -755,14 +875,15 @@ if dryRun then
 
   printInstallPlan(
     source,
-    selectInstalled(installed, dryRunTarget)
+    selectInstalled(installed, dryRunTarget),
+    previousInstalled
   )
   return
 end
 
 installed = selectInstalled(installed, requestedTarget)
 
-install(source, installed)
+install(source, installed, previousInstalled)
 print("Done.")
 
 if runAfterInstall then

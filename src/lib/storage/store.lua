@@ -147,8 +147,8 @@ local function persistFresh(instance, reason)
   if not ok then
     report(
       instance,
-      reason
-      .. "; fresh state could not be persisted: "
+      (reason and reason .. "; " or "")
+      .. "fresh state could not be persisted: "
       .. tostring(err)
     )
   elseif reason then
@@ -309,6 +309,17 @@ function storage.open(namespace, name, options)
     end
 
     return state
+  end
+
+  function instance:trySave(state)
+    local ok, result = pcall(self.save, self, state)
+
+    if not ok then
+      report(self, "record save failed: " .. tostring(result))
+      return false, result
+    end
+
+    return true, result
   end
 
   function instance:reset()

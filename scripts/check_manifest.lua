@@ -39,6 +39,8 @@ local manifest = dofile("src/manifest.lua")
 assertType(manifest, "table", "Manifest")
 
 local packageNames = {}
+local fileOwners = {}
+local moduleOwners = {}
 
 for name, target in pairs(manifest) do
   assertType(name, "string", "Manifest package name")
@@ -61,7 +63,26 @@ for name, target in pairs(manifest) do
       fail("Duplicate file in package " .. name .. ": " .. path)
     end
 
+    if fileOwners[path] then
+      fail(
+        "File belongs to multiple packages: "
+        .. path
+        .. " ("
+        .. fileOwners[path]
+        .. ", "
+        .. name
+        .. ")"
+      )
+    end
+
     declaredFiles[path] = true
+    fileOwners[path] = name
+
+    if path:sub(-4) == ".lua" then
+      moduleOwners[
+        path:sub(1, -5):gsub("/", ".")
+      ] = name
+    end
 
     local fullPath = SOURCE_ROOT .. "/" .. path
 
@@ -121,6 +142,89 @@ end
 
 for name in pairs(packageNames) do
   visit(name)
+end
+
+local dependencyClosures = {}
+
+local function dependenciesOf(name)
+  local result = dependencyClosures[name]
+
+  if result then
+    return result
+  end
+
+  result = {[name] = true}
+  dependencyClosures[name] = result
+
+  for _, dependency in ipairs(manifest[name].depends or {}) do
+    result[dependency] = true
+
+    for transitive in pairs(dependenciesOf(dependency)) do
+      result[transitive] = true
+    end
+  end
+
+  return result
+end
+
+local function checkRequiredModule(owner, path, moduleName)
+  local dependency = moduleOwners[moduleName]
+
+  if dependency
+      and not dependenciesOf(owner)[dependency]
+  then
+    fail(
+      "Missing package dependency for "
+      .. path
+      .. ": "
+      .. owner
+      .. " -> "
+      .. dependency
+      .. " (requires "
+      .. moduleName
+      .. ")"
+    )
+  end
+end
+
+for path, owner in pairs(fileOwners) do
+  local file = assert(io.open(SOURCE_ROOT .. "/" .. path, "r"))
+  local source = assert(file:read("*a"))
+  file:close()
+
+  for moduleName in source:gmatch('require%s*%(%s*"([^"]+)"') do
+    checkRequiredModule(owner, path, moduleName)
+  end
+
+  for moduleName in source:gmatch("require%s*%(%s*'([^']+)'") do
+    checkRequiredModule(owner, path, moduleName)
+  end
+end
+
+local sourceFiles = io.popen(
+  "find src/lib src/app src/script -type f -name '*.lua' -print"
+)
+
+assert(sourceFiles, "Failed to list production source files")
+
+for fullPath in sourceFiles:lines() do
+  local path = fullPath:sub(#SOURCE_ROOT + 2)
+
+  if not fileOwners[path] then
+    fail("Production source is missing from manifest: " .. path)
+  end
+end
+
+
+local closed, closeReason, closeCode = sourceFiles:close()
+
+if not closed then
+  fail(
+    "Failed to list production source files: "
+    .. tostring(closeReason)
+    .. " "
+    .. tostring(closeCode)
+  )
 end
 
 print("manifest: OK")

@@ -1,3 +1,5 @@
+local decimal = require("lib.utils.decimal")
+
 local format = {}
 
 local function compactPower(value, suffix)
@@ -160,54 +162,7 @@ function format.powerRate(value)
 end
 
 function format.energy(value)
-  if type(value) ~= "string" then
-    return "--"
-  end
-
-  local normalized = value:gsub("^0+", "")
-
-  if normalized == "" then
-    normalized = "0"
-  end
-
-  local length = #normalized
-  local exponent = length - 1
-  local digits = math.min(length, 15)
-  local leading = tonumber(normalized:sub(1, digits))
-
-  if not leading then
-    return "--"
-  end
-
-  if normalized == "0" then
-    return "0 EU"
-  end
-
-  local unitExponent = math.floor(exponent / 3) * 3
-  local units = {
-    [0] = "",
-    [3] = "k",
-    [6] = "M",
-    [9] = "G",
-    [12] = "T",
-    [15] = "P",
-    [18] = "E",
-  }
-  local unit = units[unitExponent]
-
-  if not unit then
-    return string.format(
-      "%.3e EU",
-      leading / (10 ^ (digits - 1)) * (10 ^ exponent)
-    )
-  end
-
-  return string.format(
-    "%.3g %sEU",
-    leading / (10 ^ (digits - 1))
-      * (10 ^ (exponent - unitExponent)),
-    unit
-  )
+  return decimal.compact(value, "EU")
 end
 
 function format.energyExact(value)

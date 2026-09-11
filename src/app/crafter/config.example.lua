@@ -1,4 +1,7 @@
 return {
+  -- Optional component address when more than one AE2 network is attached.
+  -- meAddress = "00000000-0000-0000-0000-000000000000",
+
   -- GTNH AE2 request planning is serialized for this computer by default.
   -- Increase only if this setup is known to accept concurrent requests.
   maxConcurrent = 1,

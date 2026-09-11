@@ -9,8 +9,15 @@ local protocol =
 
 local sender = {}
 
-local modem =
-    component.modem
+local function resolveModem()
+  local modem = component.modem
+
+  if not modem then
+    return nil, "telemetry modem is unavailable"
+  end
+
+  return modem
+end
 
 
 function sender.create(options)
@@ -66,7 +73,14 @@ function sender.create(options)
       return nil, payload
     end
 
-    local sent, result =
+    local modem, modemError = resolveModem()
+
+    if not modem then
+      setStatus("failed", modemError)
+      return nil, modemError
+    end
+
+    local sent, result, broadcastError =
         pcall(function()
           return modem.broadcast(
             port,
@@ -79,17 +93,18 @@ function sender.create(options)
       return nil, result
     end
 
-    if result == false then
+    if result ~= true then
       local errorMessage =
-          "modem broadcast returned false"
+          broadcastError
+          or "modem broadcast returned " .. tostring(result)
 
       setStatus("failed", errorMessage)
-      return result, errorMessage
+      return nil, errorMessage
     end
 
     setStatus("sent")
 
-    return result
+    return true
   end
 
   function instance:send(data)

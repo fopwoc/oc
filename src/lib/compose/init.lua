@@ -6,7 +6,7 @@ local color = require("lib.compose.color")
 local scroll = require("lib.compose.scroll")
 local navigation = require("lib.compose.navigation")
 local hardware = require("lib.compose.hardware")
-local ringBuffer = require("lib.compose.ring_buffer")
+local ringBuffer = require("lib.collections.ring_buffer")
 
 local compose = {}
 
