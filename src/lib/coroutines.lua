@@ -49,7 +49,9 @@ function coroutines.create(options)
         )
 
     if not ok then
-      error(yielded, 0)
+      -- The coroutine stack is still intact here; capture it before the
+      -- error leaves the scheduler or the failing line is lost.
+      error(debug.traceback(effect.thread, tostring(yielded)), 0)
     end
 
     if coroutine.status(effect.thread) == "dead" then
