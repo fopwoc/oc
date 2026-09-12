@@ -81,13 +81,20 @@ compose.App(function()
   compose.LaunchedEffect(
     "scheduler",
     function()
+      local lastSignature
+
       while true do
         scheduler:step(
           playing.value
         )
 
-        revision.value =
-            revision.value + 1
+        local signature = scheduler:signature()
+
+        if signature ~= lastSignature then
+          lastSignature = signature
+          revision.value =
+              revision.value + 1
+        end
 
         compose.delay(0.25)
       end

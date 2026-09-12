@@ -558,6 +558,26 @@ function scheduler.create(config)
     }
   end
 
+  -- Cheap digest of everything the UI renders; lets the app skip
+  -- recomposition when a polling step changed nothing visible.
+  function instance:signature()
+    local now = computer.uptime()
+    local parts = {}
+
+    for index, target in ipairs(self.targets) do
+      parts[index] = table.concat({
+        target.label,
+        target.status,
+        tostring(target.currentAmount),
+        tostring(target.amountError),
+        tostring(target.resolveError),
+        tostring(math.floor(target.completions:perHour(now) * 10)),
+      }, "\0")
+    end
+
+    return table.concat(parts, "\1")
+  end
+
   function instance:step(allowScheduling)
     local now =
         computer.uptime()

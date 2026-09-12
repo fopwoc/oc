@@ -162,6 +162,17 @@ assert(
   "accepted request should start with an active job"
 )
 
+scheduler:step(true)
+
+local signatureBefore = scheduler:signature()
+scheduler:step(true)
+
+assert(
+  target.status == "requesting"
+    and scheduler:signature() == signatureBefore,
+  "a step that changes nothing must keep the scheduler signature"
+)
+
 networkAmount = 7
 local deficitScheduler = schedulerModule.create({
   completionWindowSeconds = 3600,
