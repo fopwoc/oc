@@ -2,19 +2,44 @@ local modifier = {}
 local color = require("lib.compose.color")
 
 local Modifier = {}
-Modifier.__index = Modifier
 
-local function append(self, element)
-  local elements = {}
+-- A modifier is a persistent chain: each step only records its parent and
+-- one element, so building `Modifier:a():b():c()` is O(1) per call. The
+-- flat `elements` list that layout and rendering read is materialized on
+-- first access and cached on that modifier only.
+local function materialize(self)
+  local reversed = {}
+  local current = self
 
-  for i, value in ipairs(self.elements) do
-    elements[i] = value
+  while current and current.element do
+    reversed[#reversed + 1] = current.element
+    current = current.parent
   end
 
-  elements[#elements + 1] = element
+  local elements = {}
+  local count = #reversed
 
+  for i = count, 1, -1 do
+    elements[count - i + 1] = reversed[i]
+  end
+
+  rawset(self, "elements", elements)
+
+  return elements
+end
+
+Modifier.__index = function(self, key)
+  if key == "elements" then
+    return materialize(self)
+  end
+
+  return Modifier[key]
+end
+
+local function append(self, element)
   return setmetatable({
-    elements = elements,
+    parent = self,
+    element = element,
   }, Modifier)
 end
 
