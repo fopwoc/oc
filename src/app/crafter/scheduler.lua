@@ -233,39 +233,29 @@ local function updateTarget(
     return
   end
 
+  -- OC component methods are plain functions; `optional` marks methods that
+  -- older AE2 builds do not expose at all.
   local function jobStatus(method, optional)
     local memberOk, member =
         pcall(function()
           return target.job[method]
         end)
 
-    if not memberOk then
+    if not memberOk or member == nil then
       if optional then
         return nil, nil, nil, false
       end
 
-      return nil, nil, tostring(member), true
+      return nil, nil,
+        memberOk
+          and "crafting job does not provide " .. method
+          or tostring(member),
+        true
     end
 
-    local ok, value, detail =
-        pcall(function()
-          return member()
-        end)
+    local ok, value, detail = pcall(member)
 
     if not ok then
-      local wrappedOk, wrappedValue, wrappedDetail =
-          pcall(function()
-            return member(target.job)
-          end)
-
-      if wrappedOk then
-        return wrappedValue, wrappedDetail, nil, true
-      end
-
-      if optional then
-        return nil, nil, nil, false
-      end
-
       return nil, nil, tostring(value), true
     end
 
@@ -412,26 +402,10 @@ local function requestTarget(
   end
 
   local requested, job =
-      pcall(function()
-        return target.craftable.request(
-          deficit
-        )
-      end)
-
-  if not requested then
-    local wrappedRequested, wrappedJob =
-        pcall(function()
-            return target.craftable.request(
-              target.craftable,
-              deficit
-            )
-        end)
-
-    if wrappedRequested then
-      requested = true
-      job = wrappedJob
-    end
-  end
+      pcall(
+        target.craftable.request,
+        deficit
+      )
 
   if not requested or not job then
     -- A missing dependency is a normal scheduling state. It is
