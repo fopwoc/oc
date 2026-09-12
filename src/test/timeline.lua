@@ -86,4 +86,76 @@ assert(
   "timeline should restore serialized history"
 )
 
+-- Multi-field records: one commit per sample, per-field aggregates.
+local multi = timeline.create({
+  resolutions = {
+    {window = 60, step = 10},
+    {window = 3600, step = 60},
+  },
+  fields = {
+    fill = {aggregates = {"last", "min", "max", "sum"}, precision = 2},
+    input = {aggregates = {"sum"}, precision = 0},
+  },
+})
+
+multi:commit(0, {fill = 0.5, input = 100})
+multi:commit(5, {fill = 0.25, input = 300})
+multi:commit(10, {fill = 0.75, input = 200.4})
+
+local fill = multi:aggregate(60, 10, "fill")
+local input = multi:aggregate(60, 10, "input")
+
+assert(
+  fill.count == 3
+    and fill.buckets == 2
+    and fill.minimum == 0.25
+    and fill.maximum == 0.75
+    and fill.last == 0.75
+    and math.abs(fill.average - 0.5) < 0.0001,
+  "aggregate should roll every kept aggregate up over the window"
+)
+
+assert(
+  math.abs(input.average - 200.1333) < 0.001
+    and input.last == nil
+    and input.minimum == nil,
+  "aggregate should only expose the aggregates a field keeps"
+)
+
+assert(
+  math.abs(multi:values(60, 10, "input")[6] - 200.4) < 0.0001
+    and multi:values(60, 10, "fill")[6] == 0.75,
+  "fields without last should chart their average"
+)
+
+local restoredMulti = timeline.create({
+  resolutions = {
+    {window = 60, step = 10},
+    {window = 3600, step = 60},
+  },
+  fields = {
+    fill = {aggregates = {"last", "min", "max", "sum"}},
+    input = {aggregates = {"sum"}},
+  },
+  state = multi:export(),
+})
+
+local restoredInput = restoredMulti:aggregate(60, 10, "input")
+
+assert(
+  restoredInput.count == 3
+    and restoredInput.sum == 600
+    and restoredMulti:aggregate(60, 10, "fill").minimum == 0.25,
+  "multi-field history should round-trip through export with precision applied"
+)
+
+local missingField = pcall(function()
+  multi:commit(20, {fill = 0.5})
+end)
+
+assert(
+  not missingField,
+  "a record missing a declared field must be rejected"
+)
+
 print("timeline: OK")

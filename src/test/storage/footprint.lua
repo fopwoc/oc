@@ -63,12 +63,9 @@ local function fillPowerHistory()
     "__footprint_power__",
     "history",
     {
-      version = 4,
+      version = 5,
       default = function()
-        return {
-          buckets = {},
-          timeline = {version = 1, tiers = {}},
-        }
+        return {timeline = {}}
       end,
     }
   )
@@ -124,7 +121,7 @@ local function fillPowerHistory()
 
   assert(model:flush(), "power history flush failed: " .. tostring(store.lastError))
 
-  local stats = model:historyStats()
+  local stats = model:historyStats(time)
 
   assert(
     stats.count >= 96,

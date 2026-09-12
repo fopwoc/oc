@@ -9,9 +9,18 @@ local TICKS_PER_SECOND = 20
 local MINUTE = 60
 local DAY = 24 * 60 * MINUTE
 local DEFAULT_RAW_CAPACITY = 180
--- The 24h aggregates only need a coarse series; a quarter hour per bucket
--- keeps a day to 96 records.
-local DEFAULT_BUCKET_SECONDS = 15 * MINUTE
+
+-- Every sample is committed to one shared timeline as a record; the
+-- timeline downsamples it into the chart tiers and the 24h aggregates.
+local HISTORY_FIELDS = {
+  fill = {aggregates = {"last", "sum", "min", "max"}, precision = 4},
+  -- Minute-average EU/t is displayed with three significant digits, so
+  -- whole numbers are plenty.
+  input = {aggregates = {"sum"}, precision = 0},
+  output = {aggregates = {"sum"}, precision = 0},
+  draining = {aggregates = {"sum"}, precision = 0},
+  depleting = {aggregates = {"sum"}, precision = 0},
+}
 
 local function clamp(value, minimum, maximum)
   return math.max(
@@ -26,153 +35,6 @@ local function positive(value, fallback)
   end
 
   return fallback
-end
-
-local FILL_PRECISION = 4
--- Minute-average EU/t is displayed with three significant digits, so whole
--- numbers are plenty.
-local RATE_PRECISION = 0
-
-local function roundTo(value, precision)
-  if precision == 0 then
-    -- Keep the integer subtype: "1234" serializes shorter than "1234.0".
-    return math.floor(value + 0.5)
-  end
-
-  local factor = 10 ^ precision
-
-  return math.floor(value * factor + 0.5) / factor
-end
-
-local function validBucket(bucket)
-  return type(bucket) == "table"
-    and type(bucket.time) == "number"
-    and type(bucket.fill) == "number"
-    and type(bucket.fillMin) == "number"
-    and type(bucket.input) == "number"
-    and type(bucket.output) == "number"
-end
-
--- Persisted minute buckets are positional and rounded: a day of named,
--- full-precision buckets did not fit next to the code on a 1 MB OC disk.
-local function packBucket(bucket)
-  return {
-    math.floor(bucket.time),
-    roundTo(bucket.fill, FILL_PRECISION),
-    roundTo(bucket.fillMin, FILL_PRECISION),
-    roundTo(bucket.input, RATE_PRECISION),
-    roundTo(bucket.output, RATE_PRECISION),
-    math.floor(bucket.drainingSeconds + 0.5),
-    math.floor(bucket.depletingSeconds + 0.5),
-  }
-end
-
-local function packBuckets(buckets)
-  local result = {}
-
-  for index, bucket in ipairs(buckets) do
-    result[index] = packBucket(bucket)
-  end
-
-  return result
-end
-
-local function unpackBucket(bucket)
-  if type(bucket) ~= "table" or bucket.time ~= nil then
-    return bucket
-  end
-
-  return {
-    time = bucket[1],
-    fill = bucket[2],
-    fillMin = bucket[3],
-    input = bucket[4],
-    output = bucket[5],
-    drainingSeconds = bucket[6],
-    depletingSeconds = bucket[7],
-  }
-end
-
-local function normalizeBuckets(value, capacity, cutoff)
-  local result = {}
-
-  if type(value) ~= "table" then
-    return result
-  end
-
-  for _, bucket in ipairs(value) do
-    bucket = unpackBucket(bucket)
-
-    if validBucket(bucket)
-        and bucket.time >= cutoff
-    then
-      result[#result + 1] = {
-        time = bucket.time,
-        fill = clamp(bucket.fill, 0, 1),
-        fillMin = clamp(bucket.fillMin, 0, 1),
-        input = bucket.input,
-        output = bucket.output,
-        drainingSeconds =
-            math.max(0, bucket.drainingSeconds or 0),
-        depletingSeconds =
-            math.max(0, bucket.depletingSeconds or 0),
-      }
-    end
-  end
-
-  while #result > capacity do
-    table.remove(result, 1)
-  end
-
-  return result
-end
-
-local function newBucket(time, bucketSeconds)
-  return {
-    time = math.floor(time / bucketSeconds) * bucketSeconds,
-    count = 0,
-    fillSum = 0,
-    fillMin = 1,
-    inputSum = 0,
-    outputSum = 0,
-    drainingSeconds = 0,
-    depletingSeconds = 0,
-  }
-end
-
-local function finalizeBucket(bucket)
-  if not bucket or bucket.count == 0 then
-    return nil
-  end
-
-  return {
-    time = bucket.time,
-    fill = bucket.fillSum / bucket.count,
-    fillMin = bucket.fillMin,
-    input = bucket.inputSum / bucket.count,
-    output = bucket.outputSum / bucket.count,
-    drainingSeconds = bucket.drainingSeconds,
-    depletingSeconds = bucket.depletingSeconds,
-  }
-end
-
-local function addDuration(metric, time)
-  if not metric.lastTime
-      or not metric.bucket
-      or time <= metric.lastTime
-  then
-    return
-  end
-
-  local elapsed = math.min(time - metric.lastTime, MINUTE)
-
-  if metric.state == "DRAINING" then
-    metric.bucket.drainingSeconds =
-        metric.bucket.drainingSeconds + elapsed
-  elseif metric.state == "DEPLETING" then
-    metric.bucket.depletingSeconds =
-        metric.bucket.depletingSeconds + elapsed
-  end
 end
 
 local function average(metric, now, window, field)
@@ -253,28 +115,28 @@ local function estimateState(metric, now, options)
   return "DRAINING", etaSeconds
 end
 
-local function historyValues(metric, includeCurrent)
-  local result = {}
-
-  for _, bucket in ipairs(metric.buckets) do
-    result[#result + 1] = bucket
+-- Seconds spent in DRAINING / DEPLETING since the previous sample; the
+-- gap is capped so a long pause does not count as a long outage.
+local function stateDurations(metric, time)
+  if not metric.lastTime or time <= metric.lastTime then
+    return 0, 0
   end
 
-  if includeCurrent then
-    local finalized = finalizeBucket(metric.bucket)
+  local elapsed = math.min(time - metric.lastTime, MINUTE)
 
-    if finalized then
-      result[#result + 1] = finalized
-    end
+  if metric.state == "DRAINING" then
+    return elapsed, 0
+  elseif metric.state == "DEPLETING" then
+    return 0, elapsed
   end
 
-  return result
+  return 0, 0
 end
 
-local function historyStats(metric)
-  local buckets = historyValues(metric, true)
+local function historyStats(metric, now)
+  local fill = metric.timeline:aggregate(DAY, now, "fill")
 
-  if #buckets == 0 then
+  if not fill then
     return {
       count = 0,
       averageFill = nil,
@@ -287,41 +149,30 @@ local function historyStats(metric)
     }
   end
 
-  local fill = 0
-  local input = 0
-  local output = 0
-  local minimum = 1
-  local draining = 0
-  local depleting = 0
-
-  for _, bucket in ipairs(buckets) do
-    fill = fill + bucket.fill
-    input = input + bucket.input
-    output = output + bucket.output
-    minimum = math.min(minimum, bucket.fillMin)
-    draining = draining + bucket.drainingSeconds
-    depleting = depleting + bucket.depletingSeconds
-  end
+  local input = metric.timeline:aggregate(DAY, now, "input")
+  local output = metric.timeline:aggregate(DAY, now, "output")
+  local draining = metric.timeline:aggregate(DAY, now, "draining")
+  local depleting = metric.timeline:aggregate(DAY, now, "depleting")
 
   return {
-    count = #buckets,
-    averageFill = fill / #buckets,
-    averageInput = input / #buckets,
-    averageOutput = output / #buckets,
-    averageNet = (input - output) / #buckets,
-    minimumFill = minimum,
-    drainingSeconds = draining,
-    depletingSeconds = depleting,
+    count = fill.buckets,
+    averageFill = fill.average,
+    averageInput = input.average,
+    averageOutput = output.average,
+    averageNet = input.average - output.average,
+    minimumFill = fill.minimum,
+    drainingSeconds = draining.sum,
+    depletingSeconds = depleting.sum,
   }
 end
 
 local function chartValues(metric, now, window)
-  return metric.timeline:values(window, now)
+  return metric.timeline:values(window, now, "fill")
 end
 
 local function snapshot(metric, now)
   local current = metric.current
-  local stats = historyStats(metric)
+  local stats = historyStats(metric, now)
   local netShort = current
       and average(metric, now, metric.options.shortWindow, "net")
   local netMedium = current
@@ -379,23 +230,12 @@ function analytics.create(config, options)
     settings.liveHistoryCapacity,
     DEFAULT_RAW_CAPACITY
   )
-  local bucketSeconds = positive(
-    settings.historyBucketSeconds,
-    DEFAULT_BUCKET_SECONDS
-  )
-  local historyCapacity = math.ceil(DAY / bucketSeconds) + 1
   local now = options.now or clock.now
   local persisted = options.history or {}
   local metric = {
     id = config.id,
     name = config.name,
     live = ringBuffer.create(rawCapacity),
-    buckets = normalizeBuckets(
-      persisted.buckets,
-      historyCapacity,
-      now() - DAY
-    ),
-    bucket = nil,
     current = nil,
     state = "NORMAL",
     offline = true,
@@ -406,8 +246,7 @@ function analytics.create(config, options)
         settings.sampleSeconds,
         5
       ),
-      reducer = "last",
-      precision = FILL_PRECISION,
+      fields = HISTORY_FIELDS,
       state = persisted.timeline,
     }),
     options = {
@@ -435,12 +274,10 @@ function analytics.create(config, options)
     },
   }
   local historyState = {
-    buckets = packBuckets(metric.buckets),
     timeline = metric.timeline:export(),
   }
 
   local function persist()
-    historyState.buckets = packBuckets(metric.buckets)
     historyState.timeline = metric.timeline:export()
 
     if options.persist then
@@ -485,38 +322,8 @@ function analytics.create(config, options)
       "Power sample requires numeric input and output"
     )
 
-    addDuration(metric, time)
-
-    local shouldPersist = false
-
-    if not metric.bucket
-        or time >= metric.bucket.time + bucketSeconds
-    then
-      local finalized = finalizeBucket(metric.bucket)
-
-      if finalized then
-        metric.buckets[#metric.buckets + 1] = finalized
-      end
-
-      metric.bucket = newBucket(time, bucketSeconds)
-
-      local cutoff = metric.bucket.time - DAY
-
-      while #metric.buckets > 0
-          and metric.buckets[1].time < cutoff
-      do
-        table.remove(metric.buckets, 1)
-      end
-
-      -- Disk writes are slow and block the event loop on OC, so finished
-      -- minutes are flushed in batches instead of one at a time.
-      if not metric.lastPersist
-          or time - metric.lastPersist
-            >= metric.options.persistIntervalSeconds
-      then
-        shouldPersist = true
-      end
-    end
+    local drainingSeconds, depletingSeconds =
+        stateDurations(metric, time)
 
     local powerSample = {
       time = time,
@@ -528,26 +335,26 @@ function analytics.create(config, options)
       net = input - output,
     }
 
-    metric.timeline:commit(
-      time,
-      powerSample.fill
-    )
+    metric.timeline:commit(time, {
+      fill = powerSample.fill,
+      input = input,
+      output = output,
+      draining = drainingSeconds,
+      depleting = depletingSeconds,
+    })
 
     metric.current = powerSample
     metric.live:push(powerSample)
     metric.offline = false
     metric.error = nil
-    metric.bucket.count = metric.bucket.count + 1
-    metric.bucket.fillSum = metric.bucket.fillSum + powerSample.fill
-    metric.bucket.fillMin = math.min(
-      metric.bucket.fillMin,
-      powerSample.fill
-    )
-    metric.bucket.inputSum = metric.bucket.inputSum + input
-    metric.bucket.outputSum = metric.bucket.outputSum + output
     metric.lastTime = time
 
-    if shouldPersist then
+    -- Disk writes are slow and block the event loop on OC, so history is
+    -- flushed in batches instead of on every sample.
+    if not metric.lastPersist
+        or time - metric.lastPersist
+          >= metric.options.persistIntervalSeconds
+    then
       metric.lastPersist = time
       persist()
     end
@@ -602,8 +409,8 @@ function analytics.create(config, options)
     )
   end
 
-  function instance:historyStats()
-    return historyStats(metric)
+  function instance:historyStats(time)
+    return historyStats(metric, time or now())
   end
 
   return instance

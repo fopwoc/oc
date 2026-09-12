@@ -27,7 +27,6 @@ local model = analytics.create(
   },
   {
     settings = {
-      historyBucketSeconds = 60,
       depletingEtaSeconds = 100,
       depletingRecoveryEtaSeconds = 120,
     },
@@ -98,13 +97,14 @@ model:sample(
   60
 )
 
-local history = model:historyStats()
+local history = model:historyStats(60)
 
 assert(
   persisted
-    and history.count == 2
-    and math.abs(history.minimumFill - 0.0009) < 0.000001,
-  "minute transitions should persist bounded aggregate history"
+    and history.count == 1
+    and math.abs(history.minimumFill - 0.0009) < 0.000001
+    and history.averageInput ~= nil,
+  "sampling should persist and aggregate bounded history"
 )
 
 local telemetry = model:telemetry(60)

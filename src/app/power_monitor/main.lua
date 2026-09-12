@@ -227,14 +227,10 @@ historyStore = storage.open(
   "power-monitor",
   "history",
   {
-    version = 4,
+    version = 5,
     default = function()
       return {
-        buckets = {},
-        timeline = {
-          version = 1,
-          tiers = {},
-        },
+        timeline = {},
       }
     end,
   }

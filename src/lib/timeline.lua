@@ -1,5 +1,11 @@
 local ringBuffer = require("lib.collections.ring_buffer")
 
+-- Tiered time series. An application commits one record per sample at its
+-- own cadence; the timeline downsamples it into fixed-step buckets for each
+-- configured window and persists the result compactly.
+--
+-- A record is a number (field "value") or a table of named numbers. Every
+-- field keeps the aggregates listed for it: last, sum, min, max.
 local timeline = {}
 
 local DEFAULT_RESOLUTIONS = {
@@ -10,6 +16,9 @@ local DEFAULT_RESOLUTIONS = {
   {window = 24 * 60 * 60, step = 15 * 60},
 }
 
+local DEFAULT_AGGREGATES = {"last", "sum", "min", "max"}
+local EXPORT_VERSION = 2
+
 local function positive(value, fallback)
   value = tonumber(value)
 
@@ -18,6 +27,21 @@ local function positive(value, fallback)
   end
 
   return fallback
+end
+
+local function roundTo(value, precision)
+  if not precision then
+    return value
+  end
+
+  if precision == 0 then
+    -- Keep the integer subtype: "1234" serializes shorter than "1234.0".
+    return math.floor(value + 0.5)
+  end
+
+  local factor = 10 ^ precision
+
+  return math.floor(value * factor + 0.5) / factor
 end
 
 local function copyResolution(resolution)
@@ -86,110 +110,253 @@ local function resolutions(options)
   return result
 end
 
-local function newBucket(time, value)
-  return {
-    time = time,
-    value = value,
-    sum = value,
-    count = 1,
-    minimum = value,
-    maximum = value,
-  }
-end
+-- Field specifications
 
--- Persisted buckets use a positional layout because OpenComputers disks are
--- small and field names dominate the serialized size.
-local function roundTo(value, precision)
-  if not precision then
+local function lookup(value, name, fallback)
+  if type(value) == "table" then
+    local specific = value[name]
+
+    if specific ~= nil then
+      return specific
+    end
+
+    return fallback
+  end
+
+  if value ~= nil then
     return value
   end
 
-  if precision == 0 then
-    -- Keep the integer subtype: "1234" serializes shorter than "1234.0".
-    return math.floor(value + 0.5)
-  end
-
-  local factor = 10 ^ precision
-
-  return math.floor(value * factor + 0.5) / factor
+  return fallback
 end
 
-local function packBucket(bucket, precision)
+local function fieldSpec(name, options, declared)
+  declared = type(declared) == "table" and declared or {}
+
+  local aggregates =
+      declared.aggregates
+      or lookup(options.aggregates, name, DEFAULT_AGGREGATES)
+
+  local keeps = {}
+
+  for _, aggregate in ipairs(aggregates) do
+    assert(
+      aggregate == "last"
+        or aggregate == "sum"
+        or aggregate == "min"
+        or aggregate == "max",
+      "Timeline aggregate must be last, sum, min, or max: " .. tostring(aggregate)
+    )
+
+    keeps[aggregate] = true
+  end
+
+  local reducer =
+      declared.reducer
+      or lookup(options.reducers, name, nil)
+      or options.reducer
+
+  if reducer == nil then
+    reducer = keeps.last and "last" or "average"
+  end
+
   return {
-    math.floor(bucket.time),
-    roundTo(bucket.value, precision),
-    roundTo(bucket.sum, precision),
-    bucket.count,
-    roundTo(bucket.minimum, precision),
-    roundTo(bucket.maximum, precision),
+    name = name,
+    aggregates = aggregates,
+    keeps = keeps,
+    reducer = reducer,
+    precision =
+        declared.precision
+        or lookup(options.precision, name, nil),
   }
 end
 
-local function normalizeBucket(bucket)
-  if type(bucket) ~= "table" then
-    return nil
+local function declareFields(instance, names)
+  local fields = {}
+  local byName = {}
+
+  for _, entry in ipairs(names) do
+    local name = entry
+    local declared = nil
+
+    if type(entry) == "table" then
+      name = entry.name
+      declared = entry
+    end
+
+    assert(
+      type(name) == "string" and name ~= "",
+      "Timeline field name must be a non-empty string"
+    )
+
+    local spec = fieldSpec(name, instance.options, declared)
+
+    fields[#fields + 1] = spec
+    byName[name] = spec
   end
 
-  if bucket.time == nil and type(bucket[1]) == "number" then
-    bucket = {
-      time = bucket[1],
-      value = bucket[2],
-      sum = bucket[3],
-      count = bucket[4],
-      minimum = bucket[5],
-      maximum = bucket[6],
+  assert(#fields > 0, "Timeline requires at least one field")
+
+  instance.fields = fields
+  instance.fieldsByName = byName
+end
+
+local function fieldsFromOptions(instance, options)
+  local declared = options.fields
+
+  if type(declared) ~= "table" then
+    return false
+  end
+
+  local names = {}
+
+  if #declared > 0 then
+    for _, entry in ipairs(declared) do
+      names[#names + 1] = entry
+    end
+  else
+    for name, spec in pairs(declared) do
+      local entry = {name = name}
+
+      if type(spec) == "table" then
+        entry.aggregates = spec.aggregates
+        entry.reducer = spec.reducer
+        entry.precision = spec.precision
+      end
+
+      names[#names + 1] = entry
+    end
+
+    table.sort(names, function(left, right)
+      return left.name < right.name
+    end)
+  end
+
+  declareFields(instance, names)
+
+  return true
+end
+
+local function fieldsFromRecord(instance, record)
+  local names = {}
+
+  for name in pairs(record) do
+    names[#names + 1] = name
+  end
+
+  table.sort(names)
+  declareFields(instance, names)
+end
+
+-- Records and buckets
+
+local function normalizeRecord(instance, value)
+  if type(value) == "number" then
+    value = {value = value}
+  end
+
+  assert(
+    type(value) == "table",
+    "Timeline value must be a number or a table of numbers"
+  )
+
+  if not instance.fields then
+    fieldsFromRecord(instance, value)
+  end
+
+  local record = {}
+
+  for _, field in ipairs(instance.fields) do
+    local number = tonumber(value[field.name])
+
+    assert(
+      number ~= nil,
+      "Timeline record requires numeric field: " .. field.name
+    )
+
+    record[field.name] = number
+  end
+
+  return record
+end
+
+local function newBucket(instance, time, record)
+  local bucket = {
+    time = time,
+    count = 1,
+    values = {},
+  }
+
+  for _, field in ipairs(instance.fields) do
+    local value = record[field.name]
+
+    bucket.values[field.name] = {
+      last = field.keeps.last and value or nil,
+      sum = field.keeps.sum and value or nil,
+      min = field.keeps.min and value or nil,
+      max = field.keeps.max and value or nil,
     }
   end
 
-  if type(bucket.time) ~= "number"
-      or type(bucket.value) ~= "number"
-  then
-    return nil
-  end
-
-  local count = tonumber(bucket.count) or 1
-  local sum = tonumber(bucket.sum) or bucket.value
-
-  if count <= 0 then
-    return nil
-  end
-
-  return {
-    time = bucket.time,
-    value = bucket.value,
-    sum = sum,
-    count = count,
-    minimum = tonumber(bucket.minimum) or bucket.value,
-    maximum = tonumber(bucket.maximum) or bucket.value,
-  }
+  return bucket
 end
 
-local function bucketValue(bucket, reducer)
+local function addRecord(instance, bucket, record)
+  bucket.count = bucket.count + 1
+
+  for _, field in ipairs(instance.fields) do
+    local value = record[field.name]
+    local slot = bucket.values[field.name]
+
+    if field.keeps.last then
+      slot.last = value
+    end
+
+    if field.keeps.sum then
+      slot.sum = slot.sum + value
+    end
+
+    if field.keeps.min then
+      slot.min = math.min(slot.min, value)
+    end
+
+    if field.keeps.max then
+      slot.max = math.max(slot.max, value)
+    end
+  end
+end
+
+local function bucketValue(bucket, field, reducer)
+  local slot = bucket.values[field.name]
+
+  reducer = reducer or field.reducer
+
   if type(reducer) == "function" then
-    return reducer(bucket)
+    return reducer(slot, bucket)
   end
 
   if reducer == "average" then
-    return bucket.sum / bucket.count
+    assert(slot.sum ~= nil, "Timeline field does not keep sum: " .. field.name)
+    return slot.sum / bucket.count
+  end
+
+  if reducer == "sum" then
+    assert(slot.sum ~= nil, "Timeline field does not keep sum: " .. field.name)
+    return slot.sum
   end
 
   if reducer == "minimum" then
-    return bucket.minimum
+    assert(slot.min ~= nil, "Timeline field does not keep min: " .. field.name)
+    return slot.min
   end
 
   if reducer == "maximum" then
-    return bucket.maximum
+    assert(slot.max ~= nil, "Timeline field does not keep max: " .. field.name)
+    return slot.max
   end
 
-  return bucket.value
-end
-
-local function addValue(bucket, value)
-  bucket.value = value
-  bucket.sum = bucket.sum + value
-  bucket.count = bucket.count + 1
-  bucket.minimum = math.min(bucket.minimum, value)
-  bucket.maximum = math.max(bucket.maximum, value)
+  assert(slot.last ~= nil, "Timeline field does not keep last: " .. field.name)
+  return slot.last
 end
 
 local function tierFor(instance, window)
@@ -224,11 +391,121 @@ local function tierPoints(tier, cutoff)
   return result
 end
 
-local function exportTier(tier, precision)
+local function resolveField(instance, name)
+  assert(instance.fields, "Timeline has no data yet")
+
+  if name == nil then
+    return instance.fields[1]
+  end
+
+  local field = instance.fieldsByName[name]
+
+  assert(field, "Timeline has no field: " .. tostring(name))
+
+  return field
+end
+
+-- Persistence: positional buckets, one row per bucket, field aggregates in
+-- declaration order. Field names dominate serialized size otherwise.
+
+local function packBucket(instance, bucket)
+  local row = {
+    math.floor(bucket.time),
+    bucket.count,
+  }
+
+  for _, field in ipairs(instance.fields) do
+    local slot = bucket.values[field.name]
+
+    for _, aggregate in ipairs(field.aggregates) do
+      row[#row + 1] = roundTo(slot[aggregate], field.precision)
+    end
+  end
+
+  return row
+end
+
+local function unpackBucket(instance, row, layout)
+  if type(row) ~= "table"
+      or type(row[1]) ~= "number"
+      or type(row[2]) ~= "number"
+      or row[2] <= 0
+  then
+    return nil
+  end
+
+  local bucket = {
+    time = row[1],
+    count = row[2],
+    values = {},
+  }
+
+  local index = 3
+  local decoded = {}
+
+  for _, saved in ipairs(layout) do
+    local slot = {}
+
+    for _, aggregate in ipairs(saved.aggregates) do
+      slot[aggregate] = tonumber(row[index])
+      index = index + 1
+    end
+
+    decoded[saved.name] = slot
+  end
+
+  for _, field in ipairs(instance.fields) do
+    local saved = decoded[field.name]
+
+    if not saved then
+      return nil
+    end
+
+    local slot = {}
+
+    for aggregate in pairs(field.keeps) do
+      local value = saved[aggregate]
+
+      -- A missing aggregate is rebuilt from the best available one.
+      if value == nil then
+        value = saved.last or saved.max or saved.min
+
+        if value == nil and saved.sum ~= nil then
+          value = saved.sum / bucket.count
+        end
+      end
+
+      if value == nil then
+        return nil
+      end
+
+      slot[aggregate] = value
+    end
+
+    bucket.values[field.name] = slot
+  end
+
+  return bucket
+end
+
+local function exportLayout(instance)
+  local layout = {}
+
+  for _, field in ipairs(instance.fields) do
+    layout[#layout + 1] = {
+      name = field.name,
+      aggregates = field.aggregates,
+    }
+  end
+
+  return layout
+end
+
+local function exportTier(instance, tier)
   local buckets = {}
 
   for _, bucket in tier.buffer:iter() do
-    buckets[#buckets + 1] = packBucket(bucket, precision)
+    buckets[#buckets + 1] = packBucket(instance, bucket)
   end
 
   return {
@@ -236,7 +513,7 @@ local function exportTier(tier, precision)
     step = tier.step,
     buckets = buckets,
     current = tier.current
-      and packBucket(tier.current, precision)
+      and packBucket(instance, tier.current)
       or nil,
   }
 end
@@ -244,15 +521,15 @@ end
 function timeline.create(options)
   options = options or {}
 
-  local reducer =
-      options.reducer
-      or "last"
   local configured = resolutions(options)
   local instance = {
-    reducer = reducer,
-    precision = options.precision,
+    options = options,
+    fields = nil,
+    fieldsByName = nil,
     tiers = {},
   }
+
+  fieldsFromOptions(instance, options)
 
   for _, resolution in ipairs(configured) do
     instance.tiers[#instance.tiers + 1] = {
@@ -266,18 +543,23 @@ function timeline.create(options)
     }
   end
 
+  function instance:fieldNames()
+    local names = {}
+
+    for index, field in ipairs(self.fields or {}) do
+      names[index] = field.name
+    end
+
+    return names
+  end
+
   function instance:commit(time, value)
     assert(
       type(time) == "number",
       "Timeline timestamp must be a number"
     )
 
-    value = tonumber(value)
-
-    assert(
-      value ~= nil,
-      "Timeline value must be numeric"
-    )
+    local record = normalizeRecord(self, value)
 
     for _, tier in ipairs(self.tiers) do
       local start = bucketTime(time, tier.step)
@@ -295,18 +577,24 @@ function timeline.create(options)
           tier.buffer:push(current)
         end
 
-        tier.current = newBucket(start, value)
+        tier.current = newBucket(self, start, record)
       else
-        addValue(current, value)
+        addRecord(self, current, record)
       end
     end
   end
 
-  function instance:points(window, now)
+  function instance:points(window, now, fieldName)
     assert(
       type(now) == "number",
       "Timeline time must be a number"
     )
+
+    if not self.fields then
+      return {}
+    end
+
+    local field = resolveField(self, fieldName)
 
     window = positive(window, 1)
     local tier = tierFor(self, window)
@@ -316,18 +604,24 @@ function timeline.create(options)
     for _, bucket in ipairs(tierPoints(tier, cutoff)) do
       result[#result + 1] = {
         time = bucket.time,
-        value = bucketValue(bucket, self.reducer),
+        value = bucketValue(bucket, field),
       }
     end
 
     return result
   end
 
-  function instance:values(window, now)
+  function instance:values(window, now, fieldName)
     assert(
       type(now) == "number",
       "Timeline time must be a number"
     )
+
+    if not self.fields then
+      return {}
+    end
+
+    local field = resolveField(self, fieldName)
 
     window = positive(window, 1)
     local tier = tierFor(self, window)
@@ -354,10 +648,7 @@ function timeline.create(options)
       if index >= 1
           and index <= count
       then
-        result[index] = bucketValue(
-          bucket,
-          self.reducer
-        )
+        result[index] = bucketValue(bucket, field)
         observed[index] = true
       end
     end
@@ -377,15 +668,81 @@ function timeline.create(options)
     return result
   end
 
-  function instance:export()
+  -- Rolls one field up over a window: sample count, sum, minimum, maximum,
+  -- sample-weighted average, and the newest value. Nil when nothing was
+  -- committed inside the window.
+  function instance:aggregate(window, now, fieldName)
+    assert(
+      type(now) == "number",
+      "Timeline time must be a number"
+    )
+
+    if not self.fields then
+      return nil
+    end
+
+    local field = resolveField(self, fieldName)
+
+    window = positive(window, 1)
+    local tier = tierFor(self, window)
+    local points = tierPoints(tier, now - window)
+
+    if #points == 0 then
+      return nil
+    end
+
     local result = {
-      version = 1,
+      buckets = #points,
+      count = 0,
+    }
+
+    for _, bucket in ipairs(points) do
+      local slot = bucket.values[field.name]
+
+      result.count = result.count + bucket.count
+
+      if slot.sum ~= nil then
+        result.sum = (result.sum or 0) + slot.sum
+      end
+
+      if slot.min ~= nil then
+        result.minimum = math.min(result.minimum or slot.min, slot.min)
+      end
+
+      if slot.max ~= nil then
+        result.maximum = math.max(result.maximum or slot.max, slot.max)
+      end
+
+      if slot.last ~= nil then
+        result.last = slot.last
+      end
+    end
+
+    if result.sum ~= nil and result.count > 0 then
+      result.average = result.sum / result.count
+    end
+
+    return result
+  end
+
+  function instance:export()
+    if not self.fields then
+      return {
+        version = EXPORT_VERSION,
+        fields = {},
+        tiers = {},
+      }
+    end
+
+    local result = {
+      version = EXPORT_VERSION,
+      fields = exportLayout(self),
       tiers = {},
     }
 
     for _, tier in ipairs(self.tiers) do
       result.tiers[#result.tiers + 1] =
-          exportTier(tier, self.precision)
+          exportTier(self, tier)
     end
 
     return result
@@ -393,9 +750,35 @@ function timeline.create(options)
 
   function instance:restore(state)
     if type(state) ~= "table"
+        or state.version ~= EXPORT_VERSION
+        or type(state.fields) ~= "table"
         or type(state.tiers) ~= "table"
+        or #state.fields == 0
     then
       return false
+    end
+
+    local layout = {}
+
+    for _, saved in ipairs(state.fields) do
+      if type(saved) ~= "table"
+          or type(saved.name) ~= "string"
+          or type(saved.aggregates) ~= "table"
+      then
+        return false
+      end
+
+      layout[#layout + 1] = saved
+    end
+
+    if not self.fields then
+      local names = {}
+
+      for _, saved in ipairs(layout) do
+        names[#names + 1] = saved.name
+      end
+
+      declareFields(self, names)
     end
 
     local byResolution = {}
@@ -419,15 +802,15 @@ function timeline.create(options)
         tier.buffer:clear()
         tier.current = nil
 
-        for _, bucket in ipairs(saved.buckets or {}) do
-          local normalized = normalizeBucket(bucket)
+        for _, row in ipairs(saved.buckets or {}) do
+          local bucket = unpackBucket(self, row, layout)
 
-          if normalized then
-            tier.buffer:push(normalized)
+          if bucket then
+            tier.buffer:push(bucket)
           end
         end
 
-        tier.current = normalizeBucket(saved.current)
+        tier.current = unpackBucket(self, saved.current, layout)
       end
     end
 
