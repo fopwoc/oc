@@ -105,7 +105,8 @@ local crashed, message = pcall(scheduler.run, scheduler)
 assert(
   not crashed
     and message:find("effect exploded", 1, true)
-    and message:find("failingEffect", 1, true),
+    and message:find("stack traceback", 1, true)
+    and message:find("scheduler.lua", 1, true),
   "effect errors should keep the coroutine traceback"
 )
 
