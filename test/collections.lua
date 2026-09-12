@@ -1,1 +1,1 @@
-dofile("test/collections/rolling_counter.lua")
+dofile("src/test/collections/rolling_counter.lua")

@@ -1,5 +1,3 @@
-package.path = "src/?.lua;" .. package.path
-
 local color = require("lib.compose.color")
 
 local function assertEqual(actual, expected, message)

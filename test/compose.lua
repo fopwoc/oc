@@ -1,12 +1,13 @@
 for _, path in ipairs({
-  "test/compose/engine.lua",
-  "test/compose/color.lua",
+  "src/test/compose/engine.lua",
+  "src/test/compose/color.lua",
+  "src/test/compose/color_math.lua",
   "test/compose/color_style.lua",
   "src/test/compose/framebuffer.lua",
   "src/test/compose/ring_buffer.lua",
   "test/compose/scroll.lua",
-  "test/compose/navigation_engine.lua",
-  "test/compose/lifecycle.lua",
+  "src/test/compose/navigation_engine.lua",
+  "src/test/compose/lifecycle.lua",
 }) do
   dofile(path)
 end

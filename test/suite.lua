@@ -1,3 +1,5 @@
+package.path = "src/?.lua;" .. package.path
+dofile("test/support/oc.lua")
 dofile("test/compose.lua")
 dofile("test/coroutines.lua")
 dofile("test/utils.lua")

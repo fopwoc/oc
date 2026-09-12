@@ -1,5 +1,3 @@
-package.path = "src/?.lua;" .. package.path
-
 local incidentManager =
     require("lib.telemetry.incidents.manager")
 

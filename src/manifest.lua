@@ -31,6 +31,7 @@ return {
 
   test_suite = {
     depends = {
+      "ae2_craftable",
       "compose",
       "telemetry_incidents",
       "telemetry_store",
@@ -49,6 +50,7 @@ return {
       "test/coroutines/scheduler.lua",
       "test/compose/engine.lua",
       "test/compose/color.lua",
+      "test/compose/color_math.lua",
       "test/compose/framebuffer.lua",
       "test/compose/ring_buffer.lua",
       "test/compose/navigation_engine.lua",
@@ -57,8 +59,11 @@ return {
       "test/storage.lua",
       "test/storage/round_trip.lua",
       "test/telemetry.lua",
+      "test/telemetry/incident_manager.lua",
       "test/telemetry/incidents.lua",
       "test/telemetry/store.lua",
+      "test/crafter.lua",
+      "test/crafter/fluid.lua",
       "test/collections.lua",
       "test/collections/rolling_counter.lua",
       "test/format.lua",
@@ -96,7 +101,10 @@ return {
       "test/production_line.lua",
       "test/production_line/ae2.lua",
       "test/crafter/adapter.lua",
+      "test/crafter/fluid_adapter.lua",
+      "test/power_monitor.lua",
       "test/power_monitor/adapter.lua",
+      "test/power_monitor/component.lua",
     },
     run = "test/suite_adapter.lua",
     description = "Read-only OpenComputers adapter API checks",
