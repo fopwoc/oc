@@ -29,6 +29,8 @@ end
 
 cleanup()
 
+local ok, err = pcall(function()
+
 local function defaults()
   return {
     samples = {},
@@ -200,6 +202,13 @@ assert(
   "namespaces must not collide"
 )
 
+end)
+
+-- Remove test records whether or not the assertions above passed.
 cleanup()
+
+if not ok then
+  error(err, 0)
+end
 
 print("storage: OK")
