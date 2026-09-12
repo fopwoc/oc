@@ -44,7 +44,8 @@ metrics, operational detail, history.
 - Use horizontal-only cell padding to leave one cell between table columns.
   Truncate content before allowing labels or values to visually merge.
 - Charts may expand into spare space, but their controls and captions remain
-  compact.
+  compact. History charts use `HistoryChart`, so the window selector looks and
+  behaves the same in every application.
 
 ## Application emphasis
 

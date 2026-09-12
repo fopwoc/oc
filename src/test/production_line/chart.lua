@@ -75,4 +75,17 @@ assert(
   "production line chart should use minute slots for long windows"
 )
 
+local keyed = model:chart(model.inputs[1].key, 60 * 60, 5)
+
+assert(
+  #keyed == 60
+    and math.abs(keyed[#keyed] - chart[#chart]) < 0.0001,
+  "chart(key, window) should serve any timeline window for a resource"
+)
+
+assert(
+  #model:chart("missing", 60, 5) == 0,
+  "unknown resources produce an empty chart"
+)
+
 print("production line chart: OK")

@@ -16,6 +16,7 @@ local bufferView = require("lib.components.buffer_view")
 local progress = require("lib.components.progress")
 local barChart = require("lib.components.bar_chart")
 local areaChart = require("lib.components.area_chart")
+local historyChart = require("lib.components.history_chart")
 local section = require("lib.components.section")
 local telemetryStatus = require("lib.components.telemetry_status")
 
@@ -75,6 +76,9 @@ components.BarChart =
 
 components.AreaChart =
     areaChart.AreaChart
+
+components.HistoryChart =
+    historyChart.HistoryChart
 
 components.Section =
     section.Section

@@ -164,6 +164,7 @@ return {
       "lib/components/progress.lua",
       "lib/components/bar_chart.lua",
       "lib/components/area_chart.lua",
+      "lib/components/history_chart.lua",
       "lib/components/section.lua",
       "lib/components/telemetry_status.lua",
     },

@@ -148,7 +148,8 @@ The component layer provides application-scale structure on top of primitive nod
 - `TopAppBar` and `CommandBar` provide compact TUI chrome;
 - `Grid` provides dense tables with shared borders and alignment;
 - `Accordion` conditionally composes content;
-- `BufferView` renders bounded streams such as live status or event output.
+- `BufferView` renders bounded streams such as live status or event output;
+- `HistoryChart` is the one window selector (15m/1h/6h/24h) over a timeline-backed series, shared by every app that shows history.
 
 These are not separate rendering systems. They return the same compose nodes and use the same modifier, layout, input, and framebuffer pipeline as application code. That keeps components small and makes them composable instead of turning the application into a collection of special-case screens.
 

@@ -328,11 +328,6 @@ compose.App(function()
       local snapshot = currentSnapshot(revision.value)
       local stateColor = statusColor(snapshot.state)
       local input = snapshot.inputs[1]
-      local chartValues = input and input.chart
-
-      if not chartValues or #chartValues == 0 then
-        chartValues = {0}
-      end
 
       local scrollState = compose.rememberScrollState()
       local content = {
@@ -370,12 +365,16 @@ compose.App(function()
         compose.Spacer(compose.Modifier:height(1)),
 
         components.Section("INPUT HISTORY", {
-          components.AreaChart({
-            values = chartValues,
+          components.HistoryChart({
+            values = function(window)
+              if not input then
+                return {}
+              end
+
+              return model:chart(input.key, window, compose.uptime())
+            end,
             height = 5,
             fillColor = colors.primary,
-            emptyColor = colors.surfaceVariant,
-            modifier = compose.Modifier:fillMaxWidth(),
           }),
         }),
       }

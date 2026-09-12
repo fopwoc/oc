@@ -70,16 +70,11 @@ local function energyPairs(metric)
 end
 
 local function detail(context, model)
-  local window = compose.remember(15 * 60)
-  local metric = model:snapshot(clock.now())
+  local now = clock.now()
+  local metric = model:snapshot(now)
   local color = stateColor(metric)
   local exactEnergy, scaledEnergy =
       energyPairs(metric)
-  local values = model:chart(window.value, clock.now())
-
-  if #values == 0 then
-    values = {metric.fill or 0}
-  end
 
   local rows = {
     {"SIGNAL", "NOW", "5M", "24H"},
@@ -89,32 +84,6 @@ local function detail(context, model)
     {"Minimum fill", "--", "--", percent(metric.minimumFill24h)},
     {"Empty ETA", metric.etaSeconds and format.duration(metric.etaSeconds) or "--", "--", "--"},
   }
-
-  local chartWindowLabels = {
-    {label = "15m", value = 15 * 60},
-    {label = "1h", value = 60 * 60},
-    {label = "6h", value = 6 * 60 * 60},
-    {label = "24h", value = 24 * 60 * 60},
-  }
-  local windowButtons = {}
-
-  for _, option in ipairs(chartWindowLabels) do
-    local label = option.label
-    local value = option.value
-
-    windowButtons[#windowButtons + 1] =
-        components.Button(
-          label,
-          function()
-            window.value = value
-          end,
-          compose.Modifier:foreground(
-            window.value == value
-              and colors.primary
-              or colors.muted
-          )
-        )
-  end
 
   return compose.Column({
     components.Section("POWER STATUS", {
@@ -173,13 +142,13 @@ local function detail(context, model)
     compose.Spacer(compose.Modifier:height(1)),
 
     components.Section("HISTORY", {
-      components.AreaChart({
-        values = values,
-        title = compose.Row(windowButtons),
+      components.HistoryChart({
+        values = function(window)
+          return model:chart(window, now)
+        end,
+        emptyValue = metric.fill or 0,
         height = 5,
         fillColor = color,
-        emptyColor = colors.surfaceVariant,
-        modifier = compose.Modifier:fillMaxWidth(),
         footer = compose.Text(
           "draining "
             .. format.duration(metric.drainingSeconds)

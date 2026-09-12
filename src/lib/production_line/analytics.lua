@@ -580,6 +580,20 @@ function analytics.create(config)
     self.lastSample = time
   end
 
+  -- Normalized 0..1 history for one configured resource over `window`
+  -- seconds, scaled to its capacity when known.
+  function instance:chart(resourceKey, window, time)
+    for _, group in ipairs({self.inputs, self.outputs}) do
+      for _, resource in ipairs(group) do
+        if resource.key == resourceKey then
+          return chartValues(resource, time, window)
+        end
+      end
+    end
+
+    return {}
+  end
+
   function instance:setOffline(message)
     self.offline = true
     self.error = tostring(
