@@ -1,5 +1,9 @@
-.source
-.installed.lua
-.install-staging-*
-manifest.lua
-run.lua
+# OpenComputers install state (only at the install root, never in src/)
+/.source
+/.installed.lua
+/.install-staging-*
+/manifest.lua
+/run.lua
+/.data/
+luac.out
+.hallmark/

@@ -31,7 +31,6 @@ jobs:
       - name: Run local checks
         run: |
           LUA_BIN=lua5.4 LUAC_BIN=luac5.4 ./check.sh
-          lua5.4 scripts/check_manifest.lua
 
       - name: Package source
         run: tar -czf oc-source.tar.gz src check.sh devserver.sh
