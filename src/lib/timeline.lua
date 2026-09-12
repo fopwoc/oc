@@ -97,9 +97,46 @@ local function newBucket(time, value)
   }
 end
 
+-- Persisted buckets use a positional layout because OpenComputers disks are
+-- small and field names dominate the serialized size.
+local function roundTo(value, precision)
+  if not precision then
+    return value
+  end
+
+  local factor = 10 ^ precision
+
+  return math.floor(value * factor + 0.5) / factor
+end
+
+local function packBucket(bucket, precision)
+  return {
+    math.floor(bucket.time),
+    roundTo(bucket.value, precision),
+    roundTo(bucket.sum, precision),
+    bucket.count,
+    roundTo(bucket.minimum, precision),
+    roundTo(bucket.maximum, precision),
+  }
+end
+
 local function normalizeBucket(bucket)
-  if type(bucket) ~= "table"
-      or type(bucket.time) ~= "number"
+  if type(bucket) ~= "table" then
+    return nil
+  end
+
+  if bucket.time == nil and type(bucket[1]) == "number" then
+    bucket = {
+      time = bucket[1],
+      value = bucket[2],
+      sum = bucket[3],
+      count = bucket[4],
+      minimum = bucket[5],
+      maximum = bucket[6],
+    }
+  end
+
+  if type(bucket.time) ~= "number"
       or type(bucket.value) ~= "number"
   then
     return nil
@@ -182,18 +219,20 @@ local function tierPoints(tier, cutoff)
   return result
 end
 
-local function exportTier(tier)
+local function exportTier(tier, precision)
   local buckets = {}
 
   for _, bucket in tier.buffer:iter() do
-    buckets[#buckets + 1] = bucket
+    buckets[#buckets + 1] = packBucket(bucket, precision)
   end
 
   return {
     window = tier.window,
     step = tier.step,
     buckets = buckets,
-    current = tier.current,
+    current = tier.current
+      and packBucket(tier.current, precision)
+      or nil,
   }
 end
 
@@ -206,6 +245,7 @@ function timeline.create(options)
   local configured = resolutions(options)
   local instance = {
     reducer = reducer,
+    precision = options.precision,
     tiers = {},
   }
 
@@ -340,7 +380,7 @@ function timeline.create(options)
 
     for _, tier in ipairs(self.tiers) do
       result.tiers[#result.tiers + 1] =
-          exportTier(tier)
+          exportTier(tier, self.precision)
     end
 
     return result

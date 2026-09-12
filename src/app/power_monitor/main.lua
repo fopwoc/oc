@@ -13,6 +13,9 @@ local settings = require("app.power_monitor.settings")
 local colors = components.ColorStyle()
 local cells = components.GridCells(colors)
 
+-- Opened after configuration is validated; read by detail() for status.
+local historyStore
+
 local function stateColor(metric)
   if metric.offline then
     return colors.bad
@@ -141,6 +144,12 @@ local function detail(context, model)
         metric.error or "sustainable power flow",
         compose.Modifier:foreground(colors.muted)
       ),
+      historyStore.lastError
+        and compose.Text(
+          "HISTORY " .. tostring(historyStore.lastError),
+          compose.Modifier:foreground(colors.warning)
+        )
+        or nil,
     }),
 
     compose.Spacer(compose.Modifier:height(1)),
@@ -214,11 +223,11 @@ local target = {
   address = address,
 }
 
-local historyStore = storage.open(
+historyStore = storage.open(
   "power-monitor",
   "history",
   {
-    version = 3,
+    version = 4,
     default = function()
       return {
         buckets = {},

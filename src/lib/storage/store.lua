@@ -108,23 +108,57 @@ local function writeText(path, text)
   return true
 end
 
+-- Storage runs underneath compose applications, so failures are recorded
+-- instead of printed over the framebuffer.
 local function report(instance, message)
-  if instance.logger then
-    local ok = pcall(instance.logger, message)
+  instance.lastError = message
 
-    if ok then
-      return
-    end
+  if instance.logger then
+    pcall(instance.logger, message)
+  end
+end
+
+-- OpenComputers disks are tiny; refuse writes that would fill the disk
+-- instead of leaving a truncated record behind.
+local SPACE_MARGIN = 4096
+
+local function freeSpace(path)
+  local ok, proxy = pcall(filesystem.get, path)
+
+  if not ok
+      or type(proxy) ~= "table"
+      or type(proxy.spaceTotal) ~= "function"
+      or type(proxy.spaceUsed) ~= "function"
+  then
+    return nil
   end
 
-  print(
-    "[storage] "
-    .. instance.namespace
-    .. "/"
-    .. instance.name
-    .. ": "
-    .. message
-  )
+  local totalOk, total = pcall(proxy.spaceTotal)
+  local usedOk, used = pcall(proxy.spaceUsed)
+
+  if not totalOk
+      or not usedOk
+      or type(total) ~= "number"
+      or type(used) ~= "number"
+  then
+    return nil
+  end
+
+  return math.max(0, total - used)
+end
+
+local function fileSize(path)
+  if not filesystem.exists(path) then
+    return 0
+  end
+
+  local ok, size = pcall(filesystem.size, path)
+
+  if ok and type(size) == "number" then
+    return size
+  end
+
+  return 0
 end
 
 local function freshState(instance)
@@ -224,6 +258,34 @@ function storage.open(namespace, name, options)
       .. tostring(serialized)
     )
 
+    if filesystem.exists(self.path) then
+      assert(
+        not filesystem.isDirectory(self.path),
+        "Storage record path is a directory: " .. self.path
+      )
+    end
+
+    local free = freeSpace(self.directory)
+
+    if free
+        and #serialized + SPACE_MARGIN > free + fileSize(self.path)
+    then
+      error(
+        "Not enough disk space for storage record ("
+        .. tostring(#serialized)
+        .. " bytes, "
+        .. tostring(free)
+        .. " free)"
+      )
+    end
+
+    if free and #serialized + SPACE_MARGIN > free then
+      -- The new record only fits in the space the old one occupies. The
+      -- temporary file still guards against a torn write because load()
+      -- recovers it when the record itself is missing.
+      pcall(filesystem.remove, self.path)
+    end
+
     local written, writeError =
         writeText(self.temporaryPath, serialized)
 
@@ -236,10 +298,7 @@ function storage.open(namespace, name, options)
     end
 
     if filesystem.exists(self.path) then
-      assert(
-        not filesystem.isDirectory(self.path),
-        "Storage record path is a directory: " .. self.path
-      )
+      pcall(filesystem.remove, self.path)
     end
 
     local committed, commitError =
@@ -257,12 +316,20 @@ function storage.open(namespace, name, options)
       )
     end
 
+    self.lastError = nil
+    self.lastSize = #serialized
+
     return state
   end
 
   function instance:load()
     if filesystem.exists(self.temporaryPath) then
-      pcall(filesystem.remove, self.temporaryPath)
+      if filesystem.exists(self.path) then
+        pcall(filesystem.remove, self.temporaryPath)
+      else
+        -- A completed temporary file whose commit was interrupted.
+        filesystem.rename(self.temporaryPath, self.path)
+      end
     end
 
     if not filesystem.exists(self.path) then

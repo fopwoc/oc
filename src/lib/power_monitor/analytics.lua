@@ -26,6 +26,15 @@ local function positive(value, fallback)
   return fallback
 end
 
+local FILL_PRECISION = 4
+local RATE_PRECISION = 1
+
+local function roundTo(value, precision)
+  local factor = 10 ^ precision
+
+  return math.floor(value * factor + 0.5) / factor
+end
+
 local function validBucket(bucket)
   return type(bucket) == "table"
     and type(bucket.time) == "number"
@@ -33,6 +42,46 @@ local function validBucket(bucket)
     and type(bucket.fillMin) == "number"
     and type(bucket.input) == "number"
     and type(bucket.output) == "number"
+end
+
+-- Persisted minute buckets are positional and rounded: a day of named,
+-- full-precision buckets did not fit next to the code on a 1 MB OC disk.
+local function packBucket(bucket)
+  return {
+    math.floor(bucket.time),
+    roundTo(bucket.fill, FILL_PRECISION),
+    roundTo(bucket.fillMin, FILL_PRECISION),
+    roundTo(bucket.input, RATE_PRECISION),
+    roundTo(bucket.output, RATE_PRECISION),
+    math.floor(bucket.drainingSeconds + 0.5),
+    math.floor(bucket.depletingSeconds + 0.5),
+  }
+end
+
+local function packBuckets(buckets)
+  local result = {}
+
+  for index, bucket in ipairs(buckets) do
+    result[index] = packBucket(bucket)
+  end
+
+  return result
+end
+
+local function unpackBucket(bucket)
+  if type(bucket) ~= "table" or bucket.time ~= nil then
+    return bucket
+  end
+
+  return {
+    time = bucket[1],
+    fill = bucket[2],
+    fillMin = bucket[3],
+    input = bucket[4],
+    output = bucket[5],
+    drainingSeconds = bucket[6],
+    depletingSeconds = bucket[7],
+  }
 end
 
 local function normalizeBuckets(value, capacity, cutoff)
@@ -43,6 +92,8 @@ local function normalizeBuckets(value, capacity, cutoff)
   end
 
   for _, bucket in ipairs(value) do
+    bucket = unpackBucket(bucket)
+
     if validBucket(bucket)
         and bucket.time >= cutoff
     then
@@ -346,6 +397,7 @@ function analytics.create(config, options)
         5
       ),
       reducer = "last",
+      precision = FILL_PRECISION,
       state = persisted.timeline,
     }),
     options = {
@@ -361,6 +413,10 @@ function analytics.create(config, options)
         settings.depletingRecoveryEtaSeconds,
         20 * MINUTE
       ),
+      persistIntervalSeconds = positive(
+        settings.persistIntervalSeconds,
+        5 * MINUTE
+      ),
       emptyThreshold = clamp(
         settings.emptyThreshold or 0,
         0,
@@ -369,13 +425,13 @@ function analytics.create(config, options)
     },
   }
   local historyState = {
-    buckets = metric.buckets,
+    buckets = packBuckets(metric.buckets),
     timeline = metric.timeline:export(),
   }
 
   local function persist()
-    historyState.timeline =
-        metric.timeline:export()
+    historyState.buckets = packBuckets(metric.buckets)
+    historyState.timeline = metric.timeline:export()
 
     if options.persist then
       local called, saved, errorMessage =
@@ -442,8 +498,14 @@ function analytics.create(config, options)
         table.remove(metric.buckets, 1)
       end
 
-      historyState.buckets = metric.buckets
-      shouldPersist = true
+      -- Disk writes are slow and block the event loop on OC, so finished
+      -- minutes are flushed in batches instead of one at a time.
+      if not metric.lastPersist
+          or time - metric.lastPersist
+            >= metric.options.persistIntervalSeconds
+      then
+        shouldPersist = true
+      end
     end
 
     local powerSample = {
@@ -476,6 +538,7 @@ function analytics.create(config, options)
     metric.lastTime = time
 
     if shouldPersist then
+      metric.lastPersist = time
       persist()
     end
 

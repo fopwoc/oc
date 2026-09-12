@@ -7,4 +7,5 @@ return {
   depletingEtaSeconds = 15 * 60,
   depletingRecoveryEtaSeconds = 20 * 60,
   drainEpsilon = 1,
+  persistIntervalSeconds = 5 * 60,
 }
