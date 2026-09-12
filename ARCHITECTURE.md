@@ -8,7 +8,7 @@ The target is a character framebuffer with expensive GPU calls, limited Lua memo
 
 The repository is organized as a source tree that can also act as a package repository. `src/manifest.lua` describes named packages. Each package declares its files, dependencies, optional runnable entrypoint, and description. The installer resolves the dependency graph before downloading files, so an application can depend on shared compose or telemetry packages without duplicating their contents.
 
-The installer uses a staging directory. It downloads the manifest and package files into staging, validates the paths, and only then commits the complete installation. Existing files are moved into temporary backups during the commit and restored if a later replacement fails. Files retired by the new package graph go through the same backup-and-rollback path instead of accumulating forever. This keeps a failed update from leaving a half-installed runtime or destroying the currently installed manifest.
+The installer uses a staging directory. It downloads the manifest and package files into staging, validates the paths, and only then commits the complete installation. A downloaded file that is byte-identical to the installed copy is dropped from the stage immediately, so an update only needs free space for the files that actually changed. Existing files are moved into temporary backups during the commit and restored if a later replacement fails. Files retired by the new package graph go through the same backup-and-rollback path instead of accumulating forever. This keeps a failed update from leaving a half-installed runtime or destroying the currently installed manifest.
 
 The manifest is a first-class part of the packet manager. `--list` attempts to refresh it from the configured source and falls back to the local copy when the source is unavailable. `--dry-run` resolves the same package graph and prints the planned packages and files without writing them. The source URL is stored locally so a computer can switch between the public repository and a local development server.
 
@@ -59,6 +59,10 @@ When `online` changes, the runtime invalidates the scopes that read it. The comp
 
 That is particularly valuable in a TUI. A terminal screen is spatial and stateful, so imperative drawing tends to accumulate cleanup rules: clear this line, restore that color, repaint the old border, and remember which region is currently visible. Declarative composition makes the framebuffer the authority for the complete current image.
 
+### Slots are positional
+
+`remember`, `LaunchedEffect`, and `DisposableEffect` share one positional slot list per scope, exactly like Compose without `key {}`. A call that is skipped or added conditionally shifts every later slot. The runtime checks the kind of each slot on every composition and fails loudly when a state slot turns into an effect slot or vice versa; the fix is to make the call unconditional or to wrap the conditional subtree in a keyed `RecomposeScope`.
+
 ### Recomposition is scoped
 
 The runtime does not blindly rebuild every remembered subtree. A `RecomposeScope` tracks the state values read by its content. When a value changes, the affected scope becomes dirty and its parents only traverse far enough to reach dirty descendants.
@@ -91,6 +95,10 @@ The same design also makes overlays practical. A dialog scrim or semi-transparen
 ## Layout and clipping
 
 Layout is constraint-based rather than pixel-canvas-based. Nodes receive a bounded width and height, measure their children, and return their desired dimensions. Modifiers add constraints such as width, height, weight, padding, alignment, borders, and scrolling.
+
+`Modifier:width()` and `Modifier:height()` are required sizes: they replace the incoming constraints rather than being coerced into them, so a fixed-size child can extend past its parent. Nothing clips except scroll viewports and the screen edge; use `weight` or `fillMaxWidth` when a node must stay inside its parent.
+
+Modifier chains are persistent. Each call records one element and a parent pointer, and the flat element list that layout and rendering read is materialized once on first access. Building a long chain inside a hot composable therefore does not copy the list on every step.
 
 Scrollable columns keep a viewport size while measuring their content. The renderer clips children to that viewport, so content outside the visible area does not overwrite surrounding bars or panels. Input hit-testing uses the same measured tree, which means clicks and scroll events are routed to the component that visually owns the region.
 
@@ -152,7 +160,16 @@ The general-purpose `collections.RingBuffer` stores a fixed number of records an
 
 The telemetry dashboard likewise caps its live source registry and evicts the least recently seen source when full. Telemetry and incident identities include the sender address and use length-prefixed fields rather than delimiter concatenation, so configured IDs cannot accidentally overwrite one another. The modem transport resolves its primary component for each send, reports non-throwing hardware failures, and distinguishes a port it opened from one that was already open.
 
-Persistent history uses a shared OpenComputers-aware clock. OpenComputers reports `os.time()` in accelerated in-game seconds, so the clock converts it back to elapsed server seconds before values enter real-time chart windows. This keeps timestamps persistent across computer restarts without making a 15-minute chart advance at Minecraft-day speed.
+Persistent history uses a shared OpenComputers-aware clock. OpenComputers reports `os.time()` in accelerated in-game seconds, so the clock converts it back to elapsed server seconds before values enter real-time chart windows. The world clock is read once at startup and time then advances with `computer.uptime()`, so `/time set`, sleeping through the night, or a frozen daylight cycle cannot jump or stall history during a session. This keeps timestamps persistent across computer restarts without making a 15-minute chart advance at Minecraft-day speed.
+
+## Disk discipline
+
+An OpenComputers hard drive holds one or two megabytes for the operating system, the installed packages, and every record an application writes. Persistence is designed around that:
+
+- records are written through `lib/storage/store.lua`, which checks free space before writing and never prints over the running UI; a failure is kept on the store as `lastError` for the application to display;
+- the temporary file used for atomic replacement is committed by removing the old record first, so the peak footprint is one record plus the new one only when the disk has room for both; an interrupted commit is recovered from the temporary file on the next load;
+- persisted time series use positional bucket layouts with rounded values; the power monitor's full day of minute buckets plus its chart tiers is roughly 70 KB instead of the 270 KB a named, full-precision layout needed;
+- history is flushed in batches (every five minutes by default) because OC disk writes are slow and block the event loop.
 
 When the user is already at the end of a stream, new records keep the view at the end. If the user scrolls upward, new records do not steal their position. That is the behavior expected from a useful compact TUI log or event panel.
 
@@ -160,7 +177,7 @@ When the user is already at the end of a stream, new records keep the view at th
 
 The engine deliberately keeps hardware interaction behind narrow boundaries:
 
-- the host owns event pulling and local-input filtering;
+- the host owns event pulling and local-input filtering, caching the bound screen and keyboard addresses so routing an event does not cost several component calls;
 - the renderer owns GPU access and frame presentation;
 - hardware metrics are sampled periodically rather than on every composition;
 - CPU and GPU activity are labeled estimates because OC does not expose native utilization counters;

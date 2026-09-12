@@ -37,6 +37,14 @@ List installed targets or run one directly:
 # Install and forward arguments to the target
 ./install.lua --run query metaitem.01
 ```
+## Disk footprint
+
+OpenComputers drives are small (1–2 MB). A single application with its dependencies is roughly 200–300 KB of Lua; `install all` is about 400 KB and includes every test suite. Install only the targets a computer runs. The power monitor keeps about 70 KB of history under `.data/`.
+
+## Development
+
+Host checks run with any Lua 5.3+ (`./check.sh`); OpenComputers itself runs Lua 5.3, so avoid 5.4-only features such as integer-for-loop overflow semantics, `<const>`, or `math.tointeger` edge cases.
+
 ## Structure
 
 - `src/install.lua` — transactional packet installer and remote manifest loader
