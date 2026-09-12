@@ -168,7 +168,7 @@ An OpenComputers hard drive holds one or two megabytes for the operating system,
 
 - records are written through `lib/storage/store.lua`, which checks free space before writing and never prints over the running UI; a failure is kept on the store as `lastError` for the application to display;
 - the temporary file used for atomic replacement is committed by removing the old record first, so the peak footprint is one record plus the new one only when the disk has room for both; an interrupted commit is recovered from the temporary file on the next load;
-- persisted time series use positional bucket layouts with rounded values; the power monitor's full day of minute buckets plus its chart tiers is roughly 70 KB instead of the 270 KB a named, full-precision layout needed;
+- persisted time series use positional bucket layouts with rounded values; the power monitor's full day of minute buckets plus its chart tiers is roughly 70 KB in practice and stays under 128 KB at its theoretical widest (`src/test/storage/footprint.lua` writes that worst case through the real store and asserts the budget); the dashboard's incident history stays under 24 KB;
 - history is flushed in batches (every five minutes by default) because OC disk writes are slow and block the event loop.
 
 When the user is already at the end of a stream, new records keep the view at the end. If the user scrolls upward, new records do not steal their position. That is the behavior expected from a useful compact TUI log or event panel.

@@ -58,6 +58,7 @@ return {
       "test/compose/renderer.lua",
       "test/storage.lua",
       "test/storage/round_trip.lua",
+      "test/storage/footprint.lua",
       "test/telemetry.lua",
       "test/telemetry/incident_manager.lua",
       "test/telemetry/incidents.lua",

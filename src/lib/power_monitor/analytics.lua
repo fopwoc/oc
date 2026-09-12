@@ -27,9 +27,16 @@ local function positive(value, fallback)
 end
 
 local FILL_PRECISION = 4
-local RATE_PRECISION = 1
+-- Minute-average EU/t is displayed with three significant digits, so whole
+-- numbers are plenty.
+local RATE_PRECISION = 0
 
 local function roundTo(value, precision)
+  if precision == 0 then
+    -- Keep the integer subtype: "1234" serializes shorter than "1234.0".
+    return math.floor(value + 0.5)
+  end
+
   local factor = 10 ^ precision
 
   return math.floor(value * factor + 0.5) / factor
@@ -558,6 +565,11 @@ function analytics.create(config, options)
 
   function instance:sample(reading, time)
     return sample(reading, time)
+  end
+
+  -- Writes the current history immediately, bypassing the batching interval.
+  function instance:flush()
+    return persist()
   end
 
   function instance:fail(errorMessage)

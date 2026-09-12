@@ -16,7 +16,8 @@ end
 
 local function copyIncident(value)
   return {
-    key = value.key,
+    key = value.key
+      or keyFor(value.source, value.sourceId, value.address, value.id),
     source = value.source,
     sourceId = value.sourceId,
     address = value.address,
@@ -146,10 +147,15 @@ function dashboard.create(options)
   end
 
   local function addHistory(incident)
+    -- The key is derived from the other fields; leave it out of the
+    -- persisted record to keep the history file small.
+    local stored = copyIncident(incident)
+    stored.key = nil
+
     table.insert(
       instance.historyItems,
       1,
-      copyIncident(incident)
+      stored
     )
 
     while #instance.historyItems > HISTORY_LIMIT do

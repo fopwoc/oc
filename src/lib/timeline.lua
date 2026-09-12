@@ -104,6 +104,11 @@ local function roundTo(value, precision)
     return value
   end
 
+  if precision == 0 then
+    -- Keep the integer subtype: "1234" serializes shorter than "1234.0".
+    return math.floor(value + 0.5)
+  end
+
   local factor = 10 ^ precision
 
   return math.floor(value * factor + 0.5) / factor
