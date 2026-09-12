@@ -147,4 +147,33 @@ runWithSignals(
 assert(setupCount == 1)
 assert(finalCleanupCount == 1)
 
+local slotMismatchOk, slotMismatchError = pcall(runWithSignals, {
+  {},
+  {"flip"},
+  {"key_down", "test-keyboard", string.byte("q"), 0},
+}, function()
+  local flipped = runtime.remember(false)
+
+  runtime.LaunchedEffect("flip", function()
+    runtime.awaitEvent("flip")
+    flipped.value = true
+  end)
+
+  -- A conditional remember() shifts the LaunchedEffect into its slot.
+  if flipped.value then
+    runtime.remember(0)
+  end
+
+  runtime.LaunchedEffect("worker", function()
+  end)
+
+  return nodes.Text("slots")
+end)
+
+assert(
+  not slotMismatchOk
+    and tostring(slotMismatchError):find("slot", 1, true),
+  "a slot that changes kind between compositions must fail loudly"
+)
+
 print("lifecycle: OK")
