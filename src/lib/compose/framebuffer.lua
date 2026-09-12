@@ -333,6 +333,9 @@ function framebuffer.fillBackground(
   end
 end
 
+-- Mirrors gpu.copy(): rows vacated by the copy keep their previous content
+-- on the screen, so they keep it here too and the next present() diffs them
+-- against the new frame like any other cell.
 function framebuffer.shift(
     frame,
     left,
@@ -352,16 +355,6 @@ function framebuffer.shift(
   local amount = math.abs(delta)
 
   if amount >= height then
-    for y = top, top + height - 1 do
-      for x = left, left + width - 1 do
-        local i = index(frame.width, x, y)
-
-        frame.chars[i] = false
-        frame.foreground[i] = nil
-        frame.background[i] = nil
-      end
-    end
-
     return
   end
 
@@ -380,29 +373,9 @@ function framebuffer.shift(
     for y = top, top + height - amount - 1 do
       copyRow(y + amount, y)
     end
-
-    for y = top + height - amount, top + height - 1 do
-      for x = left, left + width - 1 do
-        local i = index(frame.width, x, y)
-
-        frame.chars[i] = false
-        frame.foreground[i] = nil
-        frame.background[i] = nil
-      end
-    end
   else
     for y = top + height - 1, top + amount, -1 do
       copyRow(y - amount, y)
-    end
-
-    for y = top, top + amount - 1 do
-      for x = left, left + width - 1 do
-        local i = index(frame.width, x, y)
-
-        frame.chars[i] = false
-        frame.foreground[i] = nil
-        frame.background[i] = nil
-      end
     end
   end
 end

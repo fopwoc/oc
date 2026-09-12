@@ -39,7 +39,10 @@ framebuffer.shift(
 assert(shiftedFrame.chars[1] == "2")
 assert(shiftedFrame.chars[2] == "3")
 assert(shiftedFrame.chars[3] == "4")
-assert(shiftedFrame.chars[4] == false)
+assert(
+  shiftedFrame.chars[4] == "4",
+  "vacated rows keep the content gpu.copy leaves on screen"
+)
 
 renderer.reset(rendererOptions)
 

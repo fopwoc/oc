@@ -224,13 +224,35 @@ local function finishScope(scope)
 end
 
 
+-- remember() and the effects share one positional slot list per scope. A
+-- slot that changes kind between compositions means a call was skipped or
+-- added conditionally, which would silently hand the wrong object to the
+-- next call; fail loudly instead, like Compose does.
+local function checkSlotKind(scope, index, value, expected, caller)
+  if value == nil or value.kind == expected then
+    return
+  end
+
+  error(
+    caller
+      .. "() found a "
+      .. tostring(value.kind)
+      .. " in slot "
+      .. tostring(index)
+      .. " of scope "
+      .. tostring(scope.key)
+      .. "; remember/effect calls must not be conditional within a scope",
+    3
+  )
+end
+
 local function createState(initial)
   local state = {
     value = initial,
     observers = {},
   }
 
-  return setmetatable({}, {
+  return setmetatable({kind = "state"}, {
     __index = function(_, key)
       if key == "value" then
         observeState(state)
@@ -273,6 +295,8 @@ function runtime.remember(initial)
   local value =
       currentScope.slots[index]
 
+  checkSlotKind(currentScope, index, value, "state", "remember")
+
   if value == nil then
     if type(initial) == "function" then
       value =
@@ -314,15 +338,13 @@ function runtime.LaunchedEffect(key, block)
   local old =
       currentScope.slots[index]
 
-  if
-      old
-      and old.kind == "effect"
-      and old.key == key
-  then
+  checkSlotKind(currentScope, index, old, "effect", "LaunchedEffect")
+
+  if old and old.key == key then
     return
   end
 
-  if old and old.kind == "effect" then
+  if old then
     old.cancelled = true
   end
 
@@ -360,11 +382,9 @@ function runtime.DisposableEffect(key, setup)
   local index = currentScope.slot
   local old = currentScope.slots[index]
 
-  if
-      old
-      and old.kind == "disposable"
-      and old.key == key
-  then
+  checkSlotKind(currentScope, index, old, "disposable", "DisposableEffect")
+
+  if old and old.key == key then
     return
   end
 
