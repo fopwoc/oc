@@ -132,19 +132,19 @@ end
 
 -- Draw
 
-function Modifier:background(color)
+function Modifier:background(value)
   return append(self, {
     phase = "draw",
     type = "background",
-    color = color,
+    color = color.validate(value),
   })
 end
 
-function Modifier:foreground(color)
+function Modifier:foreground(value)
   return append(self, {
     phase = "draw",
     type = "foreground",
-    color = color,
+    color = color.validate(value),
   })
 end
 

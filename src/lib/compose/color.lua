@@ -22,6 +22,20 @@ local function validateAlpha(alpha)
   )
 end
 
+function color.validate(value)
+  if type(value) == "number" then
+    validateRgb(value)
+    return value
+  end
+
+  assert(
+    getmetatable(value) == Color,
+    "Expected an RGB number or Compose Color"
+  )
+
+  return value
+end
+
 function color.create(rgb, alpha)
   if getmetatable(rgb) == Color then
     if alpha == nil then
@@ -45,9 +59,10 @@ function color.create(rgb, alpha)
   }, Color)
 end
 
+-- Called once per framebuffer cell; plain numbers are trusted here and
+-- validated where colors enter the system (color.create, modifiers).
 function color.resolve(value)
   if type(value) == "number" then
-    validateRgb(value)
     return value, 1
   end
 

@@ -27,10 +27,18 @@ function framebuffer.create(width, height)
   }
 end
 
+-- Clears in place so a reused frame keeps its already-sized arrays instead
+-- of regrowing three 8000-slot tables on every render.
 function framebuffer.clear(frame)
-  frame.chars = {}
-  frame.foreground = {}
-  frame.background = {}
+  local chars = frame.chars
+  local foreground = frame.foreground
+  local background = frame.background
+
+  for i = 1, frame.width * frame.height do
+    chars[i] = nil
+    foreground[i] = nil
+    background[i] = nil
+  end
 end
 
 function framebuffer.setForeground(frame, color)
@@ -295,40 +303,58 @@ function framebuffer.fillBackground(
     height,
     background
 )
-  local _, alpha =
+  local rgb, alpha =
       color.resolve(background)
 
   if alpha == 0 then
     return
   end
 
-  for row = y, y + height - 1 do
-    if row >= 1 and row <= frame.height then
-      for column = x, x + width - 1 do
-        if column >= 1 and column <= frame.width then
-          local i = index(frame.width, column, row)
-          local existingBackground =
-              frame.background[i]
-              or DEFAULT_BACKGROUND
+  local left = math.max(1, x)
+  local right = math.min(frame.width, x + width - 1)
+  local top = math.max(1, y)
+  local bottom = math.min(frame.height, y + height - 1)
 
-          frame.background[i] =
+  if alpha == 1 then
+    -- Opaque fill: the common case, kept free of per-cell blending.
+    local foregroundRgb, foregroundAlpha =
+        color.resolve(frame.foregroundColor)
+    local chars = frame.chars
+    local foregrounds = frame.foreground
+    local backgrounds = frame.background
+
+    for row = top, bottom do
+      for column = left, right do
+        local i = index(frame.width, column, row)
+
+        clearOverlappingGlyph(frame, column, row)
+        chars[i] = " "
+        backgrounds[i] = rgb
+
+        if foregroundAlpha == 1 then
+          foregrounds[i] = foregroundRgb
+        else
+          foregrounds[i] =
               color.blend(
-                background,
-                existingBackground
+                frame.foregroundColor,
+                foregrounds[i] or DEFAULT_FOREGROUND
               )
-
-          if alpha == 1 then
-            clearOverlappingGlyph(frame, column, row)
-            frame.chars[i] = " "
-            frame.foreground[i] =
-                color.blend(
-                  frame.foregroundColor,
-                  frame.foreground[i]
-                    or DEFAULT_FOREGROUND
-                )
-          end
         end
       end
+    end
+
+    return
+  end
+
+  for row = top, bottom do
+    for column = left, right do
+      local i = index(frame.width, column, row)
+
+      frame.background[i] =
+          color.blend(
+            background,
+            frame.background[i] or DEFAULT_BACKGROUND
+          )
     end
   end
 end
@@ -497,14 +523,18 @@ function framebuffer.present(
   local foregroundChanges = 0
   local backgroundChanges = 0
 
-  for y = 1, height do
-    local changed = {}
+  local changed = {}
 
-    local function markChanged(x)
-      if x >= 1 and x <= width and not changed[x] then
-        changed[x] = true
-        changedCells = changedCells + 1
-      end
+  local function markChanged(x)
+    if x >= 1 and x <= width and not changed[x] then
+      changed[x] = true
+      changedCells = changedCells + 1
+    end
+  end
+
+  for y = 1, height do
+    for x = 1, width do
+      changed[x] = nil
     end
 
     for x = 1, width do

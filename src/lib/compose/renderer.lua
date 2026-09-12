@@ -7,6 +7,7 @@ local debug = require("lib.compose.debug")
 local renderer = {}
 
 local previousFrame = nil
+local spareFrame = nil
 local previousScrollRegions = nil
 local lastMetrics = {
   changedCells = 0,
@@ -916,7 +917,23 @@ function renderer.render(tree, options)
     scrollRegions
   )
 
-  local frame = framebuffer.create(width, height)
+  local frame = spareFrame
+
+  if
+      not frame
+      or frame.width ~= width
+      or frame.height ~= height
+  then
+    frame = framebuffer.create(width, height)
+  else
+    framebuffer.clear(frame)
+  end
+
+  spareFrame = nil
+
+  framebuffer.setForeground(frame, 0xFFFFFF)
+  framebuffer.setForegroundAutoContrast(frame, false)
+  framebuffer.setBackground(frame, 0x000000)
 
   drawNode(
     frame,
@@ -967,6 +984,9 @@ function renderer.render(tree, options)
     gpuEstimated = true,
   }
 
+  -- The outgoing frame becomes the scratch buffer for the next render.
+  spareFrame = previousFrame
+
   previousFrame =
       frame
 
@@ -988,6 +1008,7 @@ end
 
 function renderer.reset(options)
   previousFrame = nil
+  spareFrame = nil
   previousScrollRegions = nil
 
   lastMetrics = {
