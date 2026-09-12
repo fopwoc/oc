@@ -220,6 +220,41 @@ local function stageDownload(source, path, destination)
   )
 end
 
+local function readAll(path)
+  local file = io.open(path, "rb")
+
+  if not file then
+    return nil
+  end
+
+  local content = file:read("*a")
+  file:close()
+
+  return content
+end
+
+-- OC disks are small and staging doubles the footprint of every file, so a
+-- download that matches the installed copy is dropped from the stage
+-- immediately instead of being carried through the commit.
+local function sameContent(pathA, pathB)
+  if not filesystem.exists(pathA) or not filesystem.exists(pathB) then
+    return false
+  end
+
+  if filesystem.isDirectory(pathA) or filesystem.isDirectory(pathB) then
+    return false
+  end
+
+  if filesystem.size(pathA) ~= filesystem.size(pathB) then
+    return false
+  end
+
+  local contentA = readAll(pathA)
+  local contentB = readAll(pathB)
+
+  return contentA ~= nil and contentA == contentB
+end
+
 local function validateManifest(manifest)
   assert(
     type(manifest) == "table",
@@ -565,16 +600,28 @@ local function install(source, installed, previousInstalled)
       },
     }
 
+    local unchanged = 0
+
     for _, path in ipairs(sortedFiles(files)) do
       local staged = stageDownloadPath(stage, path)
+      local destination = filesystem.concat(ROOT, path)
 
       print("Downloading " .. path)
       stageDownload(source, path, staged)
 
-      entries[#entries + 1] = {
-        staged = staged,
-        destination = filesystem.concat(ROOT, path),
-      }
+      if sameContent(staged, destination) then
+        filesystem.remove(staged)
+        unchanged = unchanged + 1
+      else
+        entries[#entries + 1] = {
+          staged = staged,
+          destination = destination,
+        }
+      end
+    end
+
+    if unchanged > 0 then
+      print(tostring(unchanged) .. " file(s) already up to date")
     end
 
     for _, path in ipairs(sortedFiles(previousFiles)) do
