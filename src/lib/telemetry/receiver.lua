@@ -6,10 +6,14 @@ local protocol =
 
 local receiver = {}
 
+-- OpenOS raises instead of returning nil when no primary modem exists.
 local function resolveModem()
-  local modem = component.modem
+  local ok, modem =
+      pcall(function()
+        return component.modem
+      end)
 
-  if not modem then
+  if not ok or not modem then
     return nil, "telemetry modem is unavailable"
   end
 

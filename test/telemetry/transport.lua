@@ -15,6 +15,8 @@ local broadcastError
 package.loaded.component = setmetatable({}, {
   __index = function(_, key)
     if key == "modem" then
+      -- Mirror OpenOS: a missing primary component raises.
+      assert(activeModem, "no primary 'modem' available")
       return activeModem
     end
   end,
