@@ -7,4 +7,13 @@ assert(
   "one Minecraft day should represent twenty real minutes"
 )
 
+local first = clock.now()
+local second = clock.now()
+
+assert(
+  type(first) == "number"
+    and second >= first,
+  "clock.now should be monotonic within a session"
+)
+
 print("clock: OK")
