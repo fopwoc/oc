@@ -201,6 +201,22 @@ local incidents = incidentManager.create({
   sender = sender,
 })
 
+-- Both bars and the content read the same snapshot; build it once per
+-- revision instead of recomputing rates and charts for every reader.
+local snapshotCache = {
+  revision = nil,
+  value = nil,
+}
+
+local function currentSnapshot(revision)
+  if snapshotCache.revision ~= revision then
+    snapshotCache.revision = revision
+    snapshotCache.value = model:snapshot(compose.uptime())
+  end
+
+  return snapshotCache.value
+end
+
 compose.App(function()
   local revision = compose.remember(0)
 
@@ -299,8 +315,7 @@ compose.App(function()
       return components.TelemetryStatus(sender, context)
     end,
     topBarActions = function()
-      local _ = revision.value
-      local snapshot = model:snapshot(compose.uptime())
+      local snapshot = currentSnapshot(revision.value)
 
       return text(
         snapshot.offline
@@ -310,8 +325,7 @@ compose.App(function()
       )
     end,
     content = function()
-      local _ = revision.value
-      local snapshot = model:snapshot(compose.uptime())
+      local snapshot = currentSnapshot(revision.value)
       local stateColor = statusColor(snapshot.state)
       local input = snapshot.inputs[1]
       local chartValues = input and input.chart

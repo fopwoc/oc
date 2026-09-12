@@ -4,24 +4,61 @@ local event = require("event")
 
 local host = {}
 
-local function isLocalInput(item)
-  local ok, gpu =
+-- Resolving the bound screen and its keyboards costs several component calls;
+-- cache them briefly instead of paying that for every key press and touch.
+local LOCAL_INPUT_CACHE_SECONDS = 2
+
+local cache = {
+  expiresAt = 0,
+  screen = nil,
+  keyboards = {},
+}
+
+local function refreshLocalInput(now)
+  cache.expiresAt = now + LOCAL_INPUT_CACHE_SECONDS
+  cache.screen = nil
+  cache.keyboards = {}
+
+  local gpuOk, gpu =
       pcall(function()
         return component.gpu
       end)
 
-  if not ok or not gpu then
-    return false
+  if not gpuOk or not gpu then
+    return
   end
 
-  local ok, screen =
+  local screenOk, screen =
       pcall(gpu.getScreen)
 
-  if not ok or not screen then
-    return false
+  if not screenOk or not screen then
+    return
   end
 
-  if not screen then
+  cache.screen = screen
+
+  local invokeOk, keyboards =
+      pcall(
+        component.invoke,
+        screen,
+        "getKeyboards"
+      )
+
+  if invokeOk and type(keyboards) == "table" then
+    for _, address in ipairs(keyboards) do
+      cache.keyboards[address] = true
+    end
+  end
+end
+
+local function isLocalInput(item)
+  local now = computer.uptime()
+
+  if now >= cache.expiresAt then
+    refreshLocalInput(now)
+  end
+
+  if not cache.screen then
     return false
   end
 
@@ -31,28 +68,11 @@ local function isLocalInput(item)
       or item.type == "drag"
       or item.type == "drop"
   then
-    return item.screen == screen
+    return item.screen == cache.screen
   end
 
   if item.type == "keyDown" or item.type == "keyUp" then
-    local invokeOk, keyboards =
-        pcall(
-          component.invoke,
-          screen,
-          "getKeyboards"
-        )
-
-    if not invokeOk or type(keyboards) ~= "table" then
-      return false
-    end
-
-    for _, address in ipairs(keyboards) do
-      if item.keyboard == address then
-        return true
-      end
-    end
-
-    return false
+    return cache.keyboards[item.keyboard] == true
   end
 
   return true

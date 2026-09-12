@@ -56,6 +56,9 @@ function dialog.Dialog(
     :scrollable(function()
       -- Modal input barrier.
     end)
+    :draggable(function()
+      -- Modal input barrier.
+    end)
   )
 end
 
