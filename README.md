@@ -43,7 +43,7 @@ OpenComputers drives are small (1–2 MB). A single application with its depende
 
 ## Development
 
-Host checks run with any Lua 5.3+ (`./check.sh`); OpenComputers itself runs Lua 5.3, so avoid 5.4-only features such as integer-for-loop overflow semantics, `<const>`, or `math.tointeger` edge cases.
+Host checks run with any Lua 5.3+ (`./check.sh`); OpenComputers itself runs Lua 5.3, so avoid 5.4-only features such as `<const>`/`<close>` attributes or the 5.4 integer-for-loop semantics.
 
 ## Structure
 

@@ -68,6 +68,7 @@ function areaChart.AreaChart(options)
     return compose.Row(
       children,
       options.modifier
+      or options.chartModifier
       or compose.Modifier:fillMaxWidth()
     )
   end
