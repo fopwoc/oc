@@ -9,7 +9,9 @@ local TICKS_PER_SECOND = 20
 local MINUTE = 60
 local DAY = 24 * 60 * MINUTE
 local DEFAULT_RAW_CAPACITY = 180
-local DEFAULT_HISTORY_CAPACITY = 1440
+-- The 24h aggregates only need a coarse series; a quarter hour per bucket
+-- keeps a day to 96 records.
+local DEFAULT_BUCKET_SECONDS = 15 * MINUTE
 
 local function clamp(value, minimum, maximum)
   return math.max(
@@ -125,9 +127,9 @@ local function normalizeBuckets(value, capacity, cutoff)
   return result
 end
 
-local function newBucket(time)
+local function newBucket(time, bucketSeconds)
   return {
-    time = math.floor(time / MINUTE) * MINUTE,
+    time = math.floor(time / bucketSeconds) * bucketSeconds,
     count = 0,
     fillSum = 0,
     fillMin = 1,
@@ -377,10 +379,11 @@ function analytics.create(config, options)
     settings.liveHistoryCapacity,
     DEFAULT_RAW_CAPACITY
   )
-  local historyCapacity = positive(
-    settings.historyCapacity,
-    DEFAULT_HISTORY_CAPACITY
+  local bucketSeconds = positive(
+    settings.historyBucketSeconds,
+    DEFAULT_BUCKET_SECONDS
   )
+  local historyCapacity = math.ceil(DAY / bucketSeconds) + 1
   local now = options.now or clock.now
   local persisted = options.history or {}
   local metric = {
@@ -487,7 +490,7 @@ function analytics.create(config, options)
     local shouldPersist = false
 
     if not metric.bucket
-        or time >= metric.bucket.time + MINUTE
+        or time >= metric.bucket.time + bucketSeconds
     then
       local finalized = finalizeBucket(metric.bucket)
 
@@ -495,7 +498,7 @@ function analytics.create(config, options)
         metric.buckets[#metric.buckets + 1] = finalized
       end
 
-      metric.bucket = newBucket(time)
+      metric.bucket = newBucket(time, bucketSeconds)
 
       local cutoff = metric.bucket.time - DAY
 

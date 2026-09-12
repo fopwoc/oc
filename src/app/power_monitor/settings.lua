@@ -1,7 +1,7 @@
 return {
   sampleSeconds = 5,
   liveHistoryCapacity = 180,
-  historyCapacity = 1440,
+  historyBucketSeconds = 15 * 60,
   shortWindow = 30,
   mediumWindow = 300,
   depletingEtaSeconds = 15 * 60,

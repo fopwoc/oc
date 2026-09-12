@@ -8,11 +8,17 @@ local storage = require("lib.storage.store")
 local powerAnalytics = require("lib.power_monitor.analytics")
 local incidentDashboard = require("lib.telemetry.incidents.dashboard")
 
-local POWER_BUDGET = 128 * 1024
+local POWER_BUDGET = 64 * 1024
 local INCIDENT_BUDGET = 24 * 1024
 
 local SAMPLE_SECONDS = 5
 local HOURS = 25
+
+-- Record size depends on how many buckets exist, not on how many samples
+-- fed them, so the day is walked at one sample per minute and only the
+-- last quarter hour (the finest chart tier) is sampled every five seconds.
+local COARSE_SECONDS = 60
+local FINE_WINDOW = 15 * 60
 
 local namespaces = {
   "__footprint_power__",
@@ -74,7 +80,6 @@ local function fillPowerHistory()
     {
       settings = {
         sampleSeconds = SAMPLE_SECONDS,
-        historyCapacity = 1440,
         liveHistoryCapacity = 180,
       },
       now = function()
@@ -87,10 +92,19 @@ local function fillPowerHistory()
     }
   )
 
-  local samples = math.floor(HOURS * 3600 / SAMPLE_SECONDS)
+  local total = HOURS * 3600
+  local offsets = {}
 
-  for index = 1, samples do
-    time = 1000000000 + index * SAMPLE_SECONDS
+  for offset = COARSE_SECONDS, total - FINE_WINDOW, COARSE_SECONDS do
+    offsets[#offsets + 1] = offset
+  end
+
+  for offset = total - FINE_WINDOW + SAMPLE_SECONDS, total, SAMPLE_SECONDS do
+    offsets[#offsets + 1] = offset
+  end
+
+  for index, offset in ipairs(offsets) do
+    time = 1000000000 + offset
 
     -- Stored energy wobbles so value, minimum and maximum all differ.
     local stored = 123456789012345678 + (index % 997) * 1234567890123
@@ -113,8 +127,8 @@ local function fillPowerHistory()
   local stats = model:historyStats()
 
   assert(
-    stats.count >= 1440,
-    "expected a full day of minute buckets, got " .. tostring(stats.count)
+    stats.count >= 96,
+    "expected a full day of aggregate buckets, got " .. tostring(stats.count)
   )
 
   return sizeOf(store)

@@ -27,6 +27,7 @@ local model = analytics.create(
   },
   {
     settings = {
+      historyBucketSeconds = 60,
       depletingEtaSeconds = 100,
       depletingRecoveryEtaSeconds = 120,
     },
